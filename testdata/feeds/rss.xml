@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test News</title>
+    <link>{{BASE}}/</link>
+    <language>zh-TW</language>
+    <item>
+      <title>台積電第三季營收創新高</title>
+      <link>{{BASE}}/news/tsmc-q3.html?utm_source=rss&amp;utm_medium=feed</link>
+      <pubDate>Sat, 18 Oct 2026 08:00:00 +0800</pubDate>
+      <description>台積電公布第三季營收。</description>
+    </item>
+    <item>
+      <title>台積電新廠傳聞</title>
+      <link>{{BASE}}/news/tsmc-rumor.html</link>
+      <pubDate>Sat, 18 Oct 2026 09:00:00 +0800</pubDate>
+      <description>市場傳聞台積電營收將下修。</description>
+    </item>
+    <item>
+      <title>天氣預報</title>
+      <link>{{BASE}}/news/weather.html</link>
+      <pubDate>Sat, 18 Oct 2026 10:00:00 +0800</pubDate>
+      <description>明天晴時多雲。</description>
+    </item>
+    <item>
+      <title>壞掉的連結</title>
+      <link>{{BASE}}/news/missing.html</link>
+      <pubDate>Sat, 18 Oct 2026 11:00:00 +0800</pubDate>
+      <description>這篇抓不到。</description>
+    </item>
+  </channel>
+</rss>

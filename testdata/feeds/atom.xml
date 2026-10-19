@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>Chip Wire</title>
+  <id>urn:test:chipwire</id>
+  <updated>2026-10-18T12:00:00Z</updated>
+  <entry>
+    <title>TSMC revenue beats estimates</title>
+    <link href="{{BASE}}/en/tsmc-revenue#comments"/>
+    <id>urn:test:1</id>
+    <updated>2026-10-18T12:00:00Z</updated>
+    <published>2026-10-18T11:00:00Z</published>
+    <content type="html">&lt;p&gt;&lt;b&gt;TSMC&lt;/b&gt; reported quarterly &lt;a href="/en/report"&gt;revenue&lt;/a&gt; above estimates.&lt;/p&gt;&lt;p&gt;Analysts expect growth to continue.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <title>Memory prices fall</title>
+    <link href="{{BASE}}/en/memory"/>
+    <id>urn:test:2</id>
+    <updated>2026-10-18T13:00:00Z</updated>
+    <summary>DRAM contract prices dropped again.</summary>
+  </entry>
+</feed>
