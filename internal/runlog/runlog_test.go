@@ -80,6 +80,18 @@ func TestStatsAndSummary(t *testing.T) {
 	}
 }
 
+func TestPad(t *testing.T) {
+	if got := pad("新增", 6); got != "新增  " {
+		t.Errorf("pad CJK = %q", got)
+	}
+	if got := pad("ab", 4); got != "ab  " {
+		t.Errorf("pad ASCII = %q", got)
+	}
+	if got := pad("略過（未命中）", 4); got != "略過（未命中）" {
+		t.Errorf("pad overflow = %q", got)
+	}
+}
+
 func TestEchoAndEmptySummary(t *testing.T) {
 	dir := t.TempDir()
 	var echo bytes.Buffer

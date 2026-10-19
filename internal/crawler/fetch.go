@@ -51,7 +51,7 @@ type Fetcher struct {
 
 	mu   sync.Mutex
 	next map[string]time.Time // host -> earliest time of the next request
-	// Requests counts HTTP requests actually sent, including retries.
+	// requests counts URLs requested; retries of the same URL count once.
 	requests int
 }
 
@@ -67,7 +67,7 @@ func New(userAgent string, timeout, delay time.Duration, retries int) *Fetcher {
 	}
 }
 
-// Requests returns the number of HTTP requests sent so far.
+// Requests returns the number of URLs requested so far (retries excluded).
 func (f *Fetcher) Requests() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -91,6 +91,11 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Response, error) {
 		if err := f.wait(ctx, u.Host); err != nil {
 			return nil, err
 		}
+		if attempt == 0 {
+			f.mu.Lock()
+			f.requests++
+			f.mu.Unlock()
+		}
 		resp, err := f.do(ctx, rawURL)
 		if err == nil {
 			return resp, nil
@@ -110,9 +115,6 @@ func (f *Fetcher) do(ctx context.Context, rawURL string) (*Response, error) {
 	}
 	req.Header.Set("User-Agent", f.UserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	f.mu.Lock()
-	f.requests++
-	f.mu.Unlock()
 	resp, err := f.Client.Do(req)
 	if err != nil {
 		return nil, err

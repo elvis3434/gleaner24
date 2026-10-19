@@ -7,7 +7,7 @@ gleaner：依 config 設定，從指定網站與 RSS 收集符合關鍵字的內
 - 規格以 docs/SPEC.md 為準；與規格衝突時先提出，不自行改變設計。
 - Go module 為 `github.com/elvis3434/gleaner24`，執行檔名稱為 `gleaner`（進入點 `cmd/gleaner`）。
 - Config 使用 TOML（`github.com/BurntSushi/toml`），範例檔為 `config.example.toml`。
-- Go 1.23 以上；只用純 Go 套件（不得依賴 cgo），必須能交叉編譯 `GOOS=windows GOARCH=amd64`。
+- Go 1.26 以上（使用者決定採用各依賴的最新版，最新版 `modernc.org/sqlite` 與 `golang.org/x/*` 需要 Go 1.26）；只用純 Go 套件（不得依賴 cgo），必須能交叉編譯 `GOOS=windows GOARCH=amd64`。
 - 一次只實作 SPEC 的一個階段，完成後更新 docs/SPEC.md 中該階段的勾選清單。
 - 所有網路相關測試使用 testdata/ 與 httptest，不在測試中連外。
 - 每個 internal/ 套件都要有單元測試；`go vet ./...` 與 `go test ./...` 必須通過。
@@ -23,7 +23,7 @@ gleaner：依 config 設定，從指定網站與 RSS 收集符合關鍵字的內
 
 ## 目前進度
 
-- [ ] 階段 1：MVP（RSS 加關鍵字加歸檔）
+- [x] 階段 1：MVP（RSS 加關鍵字加歸檔）— 實作與離線測試完成，待使用者本機以真實網站實測
 - [ ] 階段 2：指定網站爬行與語言
 - [ ] 階段 3：圖片
 - [ ] 階段 4：閱讀與選配功能

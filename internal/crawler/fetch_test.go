@@ -55,6 +55,9 @@ func TestRetryOn500(t *testing.T) {
 	if string(resp.Body) != "ok" || n.Load() != 3 {
 		t.Errorf("body %q after %d requests", resp.Body, n.Load())
 	}
+	if f.Requests() != 1 {
+		t.Errorf("Requests = %d, want 1 (retries not counted)", f.Requests())
+	}
 }
 
 func TestNoRetryOn404And503(t *testing.T) {

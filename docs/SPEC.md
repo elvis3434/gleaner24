@@ -10,7 +10,7 @@
 
 | 項目 | 決定 |
 | --- | --- |
-| 開發語言 | Go，編譯為單一執行檔 `gleaner.exe` |
+| 開發語言 | Go 1.26 以上，編譯為單一執行檔 `gleaner.exe` |
 | Go module | `github.com/elvis3434/gleaner24` |
 | 執行地點 | 使用者本機（Windows 11），以工作排程器定時執行 |
 | 開發方式 | Claude Code 雲端開發，本機實測 |
@@ -352,11 +352,11 @@ gleaner24/
 
 ### 階段 1：MVP（RSS 加關鍵字加歸檔）
 
-- [ ] config 載入、預設值、驗證；`validate` 指令可用
-- [ ] 布林表達式解析與求值，含 NOT 與括號；`test-query` 可用
-- [ ] feeds 來源與全文抓取、正文擷取、Markdown 存檔含 front matter
-- [ ] 網址正規化、內容指紋、SQLite 去重
-- [ ] 本次 log 與 F8 摘要
+- [x] config 載入、預設值、驗證；`validate` 指令可用
+- [x] 布林表達式解析與求值，含 NOT 與括號；`test-query` 可用
+- [x] feeds 來源與全文抓取、正文擷取、Markdown 存檔含 front matter
+- [x] 網址正規化、內容指紋、SQLite 去重
+- [x] 本次 log 與 F8 摘要
 
 驗收：同一份 config 連續執行兩次，第二次有效筆數為 0；關鍵字解析器單元測試覆蓋 AND、OR、NOT、括號、引號詞組與語法錯誤。
 

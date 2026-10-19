@@ -212,7 +212,7 @@ var reasonText = map[string]string{
 // Summary formats the F8 summary.
 func Summary(s Stats) string {
 	var b strings.Builder
-	row := func(k string, v any) { fmt.Fprintf(&b, "%-16s %v\n", k, v) }
+	row := func(k string, v any) { fmt.Fprintf(&b, "%s %v\n", pad(k, 18), v) }
 	b.WriteString("\n===== 收集摘要 =====\n")
 	row("開始時間", s.StartedAt)
 	row("結束時間", s.FinishedAt)
@@ -237,6 +237,29 @@ func Summary(s Stats) string {
 	writeMap(&b, "各 topic 有效筆數", s.PerTopic)
 	writeMap(&b, "各網站有效筆數", s.PerSite)
 	return b.String()
+}
+
+// pad right-pads s with spaces to the given display width, counting CJK
+// and full-width characters as two columns.
+func pad(s string, width int) string {
+	w := 0
+	for _, r := range s {
+		w++
+		if isWide(r) {
+			w++
+		}
+	}
+	if w >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-w)
+}
+
+func isWide(r rune) bool {
+	return r >= 0x1100 && (r <= 0x115f || (r >= 0x2e80 && r <= 0xa4cf) ||
+		(r >= 0xac00 && r <= 0xd7a3) || (r >= 0xf900 && r <= 0xfaff) ||
+		(r >= 0xfe30 && r <= 0xfe4f) || (r >= 0xff00 && r <= 0xff60) ||
+		(r >= 0xffe0 && r <= 0xffe6))
 }
 
 func writeMap(b *strings.Builder, title string, m map[string]int) {
