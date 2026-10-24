@@ -14,6 +14,7 @@ import (
 	_ "time/tzdata" // Windows has no system time zone database
 
 	"github.com/elvis3434/gleaner24/internal/market"
+	"github.com/elvis3434/gleaner24/internal/market/chart"
 	"github.com/elvis3434/gleaner24/internal/runlog"
 )
 
@@ -29,6 +30,7 @@ const usage = `quotes - collect daily Taiwan stock, futures and options data
 Usage:
   quotes run [-c quotes.toml] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--dry-run]
   quotes validate [-c quotes.toml]
+  quotes chart [-c quotes.toml]      regenerate the K-line page from the database
 
 Without --from/--to, run collects the last lookback_days calendar days.
 Exit codes: 0 success (including some failed requests), 1 config error,
@@ -57,6 +59,8 @@ func runMain(args []string, stdout, stderr io.Writer) int {
 		return cmdRun(args[1:], stdout, stderr)
 	case "validate":
 		return cmdValidate(args[1:], stdout, stderr)
+	case "chart":
+		return cmdChart(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
 		return exitOK
@@ -132,6 +136,31 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	if stats.EndReason == runlog.Aborted {
 		return exitAborted
 	}
+	return exitOK
+}
+
+func cmdChart(args []string, stdout, stderr io.Writer) int {
+	fs := newFlags("chart", stderr)
+	cfgPath := fs.String("c", "quotes.toml", "config file")
+	if err := fs.Parse(args); err != nil {
+		return exitConfig
+	}
+	cfg, ok := loadConfig(*cfgPath, stderr)
+	if !ok {
+		return exitConfig
+	}
+	st, err := market.OpenStoreReadOnly(cfg.Output.DB)
+	if err != nil {
+		fmt.Fprintf(stderr, "chart: open %s: %v (run quotes run first)\n", cfg.Output.DB, err)
+		return exitAborted
+	}
+	defer st.Close()
+	res, err := chart.Generate(st.DB(), cfg.Chart.Dir, time.Now().In(location()))
+	if err != nil {
+		fmt.Fprintf(stderr, "chart: %v\n", err)
+		return exitAborted
+	}
+	fmt.Fprintf(stdout, "K 線網頁：%s（%d 個資料檔）\n", res.Index, res.DataFiles)
 	return exitOK
 }
 

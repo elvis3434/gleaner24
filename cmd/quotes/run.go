@@ -14,6 +14,7 @@ import (
 
 	"github.com/elvis3434/gleaner24/internal/crawler"
 	"github.com/elvis3434/gleaner24/internal/market"
+	"github.com/elvis3434/gleaner24/internal/market/chart"
 	"github.com/elvis3434/gleaner24/internal/market/futures"
 	"github.com/elvis3434/gleaner24/internal/market/options"
 	"github.com/elvis3434/gleaner24/internal/market/stock"
@@ -61,6 +62,7 @@ type Stats struct {
 	Failed          int              `json:"failed"`
 	Failures        []runlog.Failure `json:"failures"`
 	Warnings        []string         `json:"warnings"`
+	Chart           string           `json:"chart,omitempty"` // index.html written by this run
 	Datasets        []*DatasetStats  `json:"datasets"`
 }
 
@@ -142,6 +144,9 @@ func run(ctx context.Context, cfg *market.Config, opts runOptions) (Stats, error
 			}
 			break
 		}
+	}
+	if reason == runlog.Completed && !opts.DryRun && cfg.Chart.Auto {
+		r.chart()
 	}
 
 	end := opts.Now().In(opts.Loc)
@@ -264,6 +269,9 @@ func (r *runner) stock(ctx context.Context, mkt, label, symbol string) error {
 			r.fail(u, fmt.Sprintf("%s_%s_%s.json", mkt, symbol, month.Format("200601")), resp.Body, err)
 			continue
 		}
+		if err := r.st.SetStockName(symbol, mkt, stock.Name(mkt, symbol, resp.Body), r.now.Format(time.RFC3339)); err != nil {
+			return fmt.Errorf("write stock name %s: %w", symbol, err)
+		}
 		recs := make([]market.Row, len(rows))
 		for i, row := range rows {
 			recs[i] = row.Row()
@@ -355,6 +363,18 @@ func (r *runner) options(ctx context.Context, o market.Options) error {
 	})
 }
 
+// chart regenerates the K-line page; a failure is reported but does not
+// abort the run, since the data itself is already stored.
+func (r *runner) chart() {
+	res, err := chart.Generate(r.st.DB(), r.cfg.Chart.Dir, r.now)
+	if err != nil {
+		r.fail("chart "+r.cfg.Chart.Dir, "", nil, err)
+		return
+	}
+	r.stats.Chart = res.Index
+	r.log.Printf("chart: %s (%d data files)", res.Index, res.DataFiles)
+}
+
 var reasonText = map[string]string{
 	runlog.Completed: "完成",
 	runlog.Aborted:   "中斷",
@@ -385,6 +405,9 @@ func summary(s Stats) string {
 		for _, w := range s.Warnings {
 			fmt.Fprintf(&b, "  - %s\n", w)
 		}
+	}
+	if s.Chart != "" {
+		row("K 線網頁", s.Chart)
 	}
 	b.WriteString("各項目:\n")
 	for _, d := range s.Datasets {

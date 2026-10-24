@@ -34,6 +34,23 @@ type Daily struct {
 // IsSpread reports whether the row is a calendar spread.
 func (d Daily) IsSpread() bool { return strings.Contains(d.ContractMonth, "/") }
 
+// IsMonthly reports whether the row is a standard monthly contract (YYYYMM),
+// as opposed to a spread or a weekly contract.
+func (d Daily) IsMonthly() bool { return IsMonth(d.ContractMonth) }
+
+// IsMonth reports whether s is a YYYYMM contract month.
+func IsMonth(s string) bool {
+	if len(s) != 6 {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // Row converts d for market.Store.UpsertAll.
 func (d Daily) Row() market.Row {
 	return market.Row{
@@ -105,14 +122,15 @@ func parseRow(r map[string]string) (Daily, error) {
 	return d, nil
 }
 
-// Select keeps, for each trading date, the nearest months contract months
+// Select keeps, for each trading date, the nearest months monthly contracts
 // (all when months is 0) in the given sessions. Spreads are kept only when
-// includeSpreads is set and every leg is a selected month.
+// includeSpreads is set and every leg is a selected month. Weekly contracts
+// are dropped so they never crowd out the monthly ones.
 func Select(rows []Daily, months int, includeSpreads bool, sessions []string) []Daily {
 	chosen := map[string]map[string]bool{} // date -> selected months
 	byDate := map[string][]string{}
 	for _, d := range rows {
-		if !d.IsSpread() && !slices.Contains(byDate[d.Date], d.ContractMonth) {
+		if d.IsMonthly() && !slices.Contains(byDate[d.Date], d.ContractMonth) {
 			byDate[d.Date] = append(byDate[d.Date], d.ContractMonth)
 		}
 	}
@@ -142,7 +160,7 @@ func Select(rows []Daily, months int, includeSpreads bool, sessions []string) []
 			if !legsOK {
 				continue
 			}
-		} else if !chosen[d.Date][d.ContractMonth] {
+		} else if !d.IsMonthly() || !chosen[d.Date][d.ContractMonth] {
 			continue
 		}
 		out = append(out, d)

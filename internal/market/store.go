@@ -69,6 +69,14 @@ CREATE TABLE runs (
   log_file    TEXT,
   stats_json  TEXT
 );`,
+	// v2 (stage Q3): stock names for the K-line page. Kept out of
+	// stock_daily so that adding them does not mark every row as updated.
+	`CREATE TABLE stock_names (
+  symbol     TEXT PRIMARY KEY,
+  market     TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);`,
 }
 
 // Store is the quotes database. A Store opened read-only (for dry runs)
@@ -320,6 +328,18 @@ func (s *Store) FinishRun(id int64, finishedAt, endReason, statsJSON string) err
 	}
 	_, err := s.db.Exec(`UPDATE runs SET finished_at = ?, end_reason = ?, stats_json = ? WHERE id = ?`,
 		finishedAt, endReason, statsJSON, id)
+	return err
+}
+
+// SetStockName records the display name of a stock (no-op when read-only
+// or when name is empty).
+func (s *Store) SetStockName(symbol, market, name, at string) error {
+	if s == nil || s.readOnly || name == "" {
+		return nil
+	}
+	_, err := s.db.Exec(`INSERT INTO stock_names (symbol, market, name, updated_at) VALUES (?, ?, ?, ?)
+ON CONFLICT(symbol) DO UPDATE SET market = excluded.market, name = excluded.name, updated_at = excluded.updated_at`,
+		symbol, market, name, at)
 	return err
 }
 

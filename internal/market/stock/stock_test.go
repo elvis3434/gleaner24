@@ -119,3 +119,18 @@ func TestRow(t *testing.T) {
 		t.Errorf("row = %+v", r)
 	}
 }
+
+func TestName(t *testing.T) {
+	if n := Name(TWSE, "2330", fixture(t, "twse_stock_day_2330_202609.json")); n != "台積電" {
+		t.Errorf("TWSE name = %q", n)
+	}
+	if n := Name(TPEx, "6223", fixture(t, "tpex_trading_stock_6223_202609.json")); n != "旺矽" {
+		t.Errorf("TPEx name = %q", n)
+	}
+	if n := Name(TWSE, "2330", []byte(`{"title":"115年09月 2330 各日成交資訊"}`)); n != "" {
+		t.Errorf("no name = %q", n)
+	}
+	if n := Name(TWSE, "2330", []byte(`not json`)); n != "" {
+		t.Errorf("bad json = %q", n)
+	}
+}

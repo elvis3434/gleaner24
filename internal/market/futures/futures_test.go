@@ -101,6 +101,23 @@ func TestSelect(t *testing.T) {
 	if len(Select(rows, 0, true, both)) != 23 {
 		t.Error("select all should keep every row")
 	}
+
+	// A weekly contract would sort before the monthly ones ("202610W4" <
+	// "202611") and must neither be kept nor take a month's place.
+	weekly := append([]Daily{}, rows...)
+	weekly = append(weekly, Daily{Date: "2026-10-05", Product: "TX", ContractMonth: "202610W4", Session: market.Regular})
+	got = Select(weekly, 2, false, both)
+	for _, r := range got {
+		if r.ContractMonth != "202610" && r.ContractMonth != "202611" {
+			t.Errorf("weekly contract changed the selection: %s", r.ContractMonth)
+		}
+	}
+	if len(got) != 4 {
+		t.Errorf("with weekly = %d rows", len(got))
+	}
+	if !IsMonth("202610") || IsMonth("202610W4") || IsMonth("202610/202611") || IsMonth("2026AB") {
+		t.Error("IsMonth")
+	}
 }
 
 func TestParseErrors(t *testing.T) {

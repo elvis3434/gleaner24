@@ -50,6 +50,9 @@ product = "TXO"
 	if o.Expiries != 2 || !o.Weekly || o.StrikeRange != 0.05 || len(o.Sessions) != 2 {
 		t.Errorf("options = %+v", o)
 	}
+	if cfg.Chart != (Chart{Dir: "./charts", Auto: true}) {
+		t.Errorf("chart = %+v", cfg.Chart)
+	}
 }
 
 func TestConfigOverrides(t *testing.T) {
@@ -73,6 +76,10 @@ product = "TXO"
 expiries = 0
 weekly = false
 strike_range = 0
+
+[chart]
+dir = "out"
+auto = false
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -88,6 +95,9 @@ strike_range = 0
 	}
 	if o := cfg.Options[0]; o.Expiries != 0 || o.Weekly || o.StrikeRange != 0 {
 		t.Errorf("options = %+v", o)
+	}
+	if cfg.Chart != (Chart{Dir: "out", Auto: false}) {
+		t.Errorf("chart = %+v", cfg.Chart)
 	}
 }
 

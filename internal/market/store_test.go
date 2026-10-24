@@ -55,6 +55,17 @@ func TestUpsertOutcomes(t *testing.T) {
 		t.Errorf("night = %+v", c)
 	}
 
+	if err := s.SetStockName("2330", "twse", "台積電", "t"); err != nil {
+		t.Fatal(err)
+	}
+	s.SetStockName("2330", "twse", "台積電股份", "t2")
+	s.SetStockName("2330", "twse", "", "t3") // ignored
+	var name string
+	s.DB().QueryRow(`SELECT name FROM stock_names WHERE symbol = '2330'`).Scan(&name)
+	if name != "台積電股份" {
+		t.Errorf("name = %q", name)
+	}
+
 	id, err := s.StartRun("2026-10-24T15:30:00+08:00", "logs/q.log")
 	if err != nil || id == 0 {
 		t.Fatal(id, err)

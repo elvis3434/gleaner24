@@ -72,6 +72,29 @@ func Parse(mkt, symbol string, body []byte) ([]Daily, error) {
 	return ParseTWSE(symbol, body)
 }
 
+// Name extracts the stock's display name from a monthly report, or "" when
+// the report does not carry one. TWSE puts it in the title
+// ("115年09月 2330 台積電 各日成交資訊"); TPEx has a "name" field.
+func Name(mkt, symbol string, body []byte) string {
+	var r struct {
+		Title string `json:"title"`
+		Name  string `json:"name"`
+	}
+	if json.Unmarshal(body, &r) != nil {
+		return ""
+	}
+	if mkt == TPEx {
+		return strings.TrimSpace(r.Name)
+	}
+	f := strings.Fields(r.Title)
+	for i := 0; i+1 < len(f); i++ {
+		if f[i] == symbol && !strings.Contains(f[i+1], "成交資訊") {
+			return f[i+1]
+		}
+	}
+	return ""
+}
+
 // column finds the position of each wanted field (white space in field
 // names is ignored, since TPEx writes "日 期").
 func columns(fields []string, wanted ...string) (map[string]int, error) {

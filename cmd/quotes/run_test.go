@@ -120,6 +120,9 @@ func testConfig(t *testing.T, dir string) *market.Config {
 db      = '` + filepath.Join(dir, "data", "quotes.db") + `'
 log_dir = '` + filepath.Join(dir, "logs") + `'
 
+[chart]
+dir = '` + filepath.Join(dir, "charts") + `'
+
 [crawl]
 per_host_delay = "0s"
 retries = 0
@@ -231,6 +234,20 @@ func TestRunTwiceIsIdempotent(t *testing.T) {
 	if logs, _ := filepath.Glob(filepath.Join(dir, "logs", "quotes_20261005_1600*.log")); len(logs) != 2 {
 		t.Errorf("logs = %v", logs)
 	}
+	var name string
+	st.DB().QueryRow(`SELECT name FROM stock_names WHERE symbol='6223'`).Scan(&name)
+	if name != "旺矽" {
+		t.Errorf("6223 name = %q", name)
+	}
+	// The K-line page is regenerated after each run.
+	if s2.Chart == "" || !strings.Contains(out, "K 線網頁") {
+		t.Errorf("chart not generated: %q\n%s", s2.Chart, out)
+	}
+	for _, f := range []string{"index.html", "data/catalog.js", "data/fut_TX.js", "data/stock_6223.js", "data/opt_TXO_202610W1.js"} {
+		if _, err := os.Stat(filepath.Join(cfg.Chart.Dir, filepath.FromSlash(f))); err != nil {
+			t.Errorf("chart file %s: %v", f, err)
+		}
+	}
 
 	// The exchanges were asked with their real hosts.
 	hosts := strings.Join(ex.requests, "\n")
@@ -314,6 +331,26 @@ func TestWarnsWhenNothingFound(t *testing.T) {
 	}
 }
 
+func TestChartCommand(t *testing.T) {
+	ex := newExchange(t)
+	dir := t.TempDir()
+	cfg := testConfig(t, dir)
+	cfg.Chart.Auto = false
+	s, _ := doRun(t, ex, cfg, false)
+	if s.Chart != "" {
+		t.Errorf("chart generated with auto = false")
+	}
+	cfgFile := filepath.Join(dir, "q.toml")
+	os.WriteFile(cfgFile, []byte("[output]\ndb = '"+cfg.Output.DB+"'\n[chart]\ndir = '"+cfg.Chart.Dir+"'\n[stocks]\ntwse = [\"2330\"]\n"), 0o644)
+	var out, errb bytes.Buffer
+	if code := runMain([]string{"chart", "-c", cfgFile}, &out, &errb); code != exitOK {
+		t.Fatalf("chart = %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "4 個資料檔") {
+		t.Errorf("output: %s", out.String())
+	}
+}
+
 func TestRunAborted(t *testing.T) {
 	ex := newExchange(t)
 	cfg := testConfig(t, t.TempDir())
@@ -365,6 +402,13 @@ func TestCLI(t *testing.T) {
 	}
 	if code := runMain([]string{"run", "-c", filepath.Join("..", "..", "quotes.example.toml"), "--from", "2026-10-10", "--to", "2026-10-01"}, &out, &errb); code != exitConfig {
 		t.Errorf("reversed range = %d", code)
+	}
+	// quotes chart needs an existing database.
+	cfgFile := filepath.Join(t.TempDir(), "q.toml")
+	os.WriteFile(cfgFile, []byte("[output]\ndb = '"+filepath.Join(t.TempDir(), "none.db")+"'\n[stocks]\ntwse = [\"2330\"]\n"), 0o644)
+	errb.Reset()
+	if code := runMain([]string{"chart", "-c", cfgFile}, &out, &errb); code != exitAborted || !strings.Contains(errb.String(), "quotes run") {
+		t.Errorf("chart without db = %d: %s", code, errb.String())
 	}
 	if code := runMain([]string{"nope"}, &out, &errb); code != exitConfig {
 		t.Errorf("unknown command = %d", code)

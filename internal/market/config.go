@@ -20,6 +20,13 @@ type Config struct {
 	Stocks  Stocks
 	Futures []Futures
 	Options []Options
+	Chart   Chart
+}
+
+// Chart controls the K-line web page (SPEC-quotes: K 線網頁).
+type Chart struct {
+	Dir  string
+	Auto bool // regenerate after every quotes run
 }
 
 type Output struct {
@@ -86,6 +93,10 @@ type rawConfig struct {
 		StrikeRange *float64 `toml:"strike_range"`
 		Sessions    []string `toml:"sessions"`
 	} `toml:"options"`
+	Chart struct {
+		Dir  string `toml:"dir"`
+		Auto *bool  `toml:"auto"`
+	} `toml:"chart"`
 }
 
 // Defaults (SPEC-quotes: Config).
@@ -144,6 +155,13 @@ func ParseConfig(data string) (*Config, error) {
 	}
 	if cfg.Output.LogDir == "" {
 		cfg.Output.LogDir = "./logs"
+	}
+	cfg.Chart = Chart{Dir: raw.Chart.Dir, Auto: true}
+	if cfg.Chart.Dir == "" {
+		cfg.Chart.Dir = "./charts"
+	}
+	if raw.Chart.Auto != nil {
+		cfg.Chart.Auto = *raw.Chart.Auto
 	}
 	if cfg.Crawl.UserAgent == "" {
 		cfg.Crawl.UserAgent = DefaultUserAgent
