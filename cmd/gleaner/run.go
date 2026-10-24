@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"github.com/elvis3434/gleaner24/internal/crawler"
 	"github.com/elvis3434/gleaner24/internal/extract"
 	"github.com/elvis3434/gleaner24/internal/lang"
+	"github.com/elvis3434/gleaner24/internal/lock"
 	"github.com/elvis3434/gleaner24/internal/normalize"
 	"github.com/elvis3434/gleaner24/internal/runlog"
 	"github.com/elvis3434/gleaner24/internal/source"
@@ -66,6 +68,15 @@ func run(ctx context.Context, cfg *config.Config, opts runOptions) (runlog.Stats
 	}
 
 	var err error
+	if !opts.DryRun {
+		// One run at a time (SPEC: CLI); a dry run writes nothing and may
+		// overlap.
+		l, err := lock.Acquire(filepath.Join(filepath.Dir(cfg.Output.DB), "gleaner.lock"))
+		if err != nil {
+			return runlog.Stats{}, err
+		}
+		defer l.Release()
+	}
 	if opts.DryRun {
 		r.st, err = store.OpenReadOnly(cfg.Output.DB)
 		if errors.Is(err, os.ErrNotExist) {
@@ -199,8 +210,13 @@ func (r *runner) processItem(ctx context.Context, feed config.Feed, it source.It
 		if err != nil {
 			return r.failOrStop(ctx, u, err)
 		}
+		ct := resp.Header.Get("Content-Type")
+		if !isHTML(ct) {
+			r.log.Fail(u, fmt.Errorf("not an HTML page (Content-Type %q)", ct))
+			return nil
+		}
 		final, _ := url.Parse(resp.URL)
-		c.art, err = extract.Page(resp.Body, resp.Header.Get("Content-Type"), final)
+		c.art, err = extract.Page(resp.Body, ct, final)
 		if err != nil {
 			r.log.Fail(u, err)
 			return nil
@@ -237,8 +253,24 @@ func (r *runner) processItem(ctx context.Context, feed config.Feed, it source.It
 	return r.matchAndArchive(feed.Name, c)
 }
 
+// isHTML reports whether a Content-Type names an HTML page. An empty type
+// is accepted (the extractor sniffs the content); PDFs, images and the like
+// are not articles.
+func isHTML(contentType string) bool {
+	if contentType == "" {
+		return true
+	}
+	mt, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return true
+	}
+	return mt == "text/html" || mt == "application/xhtml+xml"
+}
+
 // canonical returns the normalised canonical URL when it is on the same
-// host as the fetched page; a canonical pointing elsewhere is ignored.
+// host as the fetched page. A canonical pointing elsewhere, or to the
+// site's home page (a common misconfiguration that would merge every
+// article into one), is ignored.
 func (r *runner) canonical(raw string, page *url.URL) string {
 	if raw == "" || page == nil {
 		return ""
@@ -249,6 +281,9 @@ func (r *runner) canonical(raw string, page *url.URL) string {
 	}
 	parsed, err := url.Parse(cu)
 	if err != nil || !strings.EqualFold(parsed.Hostname(), page.Hostname()) {
+		return ""
+	}
+	if parsed.Path == "/" && parsed.RawQuery == "" && page.Path != "/" && page.Path != "" {
 		return ""
 	}
 	return cu

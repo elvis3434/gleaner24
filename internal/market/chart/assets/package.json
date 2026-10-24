@@ -1,0 +1,9 @@
+{
+  "name": "gleaner24-chart-assets",
+  "private": true,
+  "description": "Version manifest for the vendored lightweight-charts.js, so that Dependabot can track it. The file itself is copied by `make update-lwc`; nothing is installed from here.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "lightweight-charts": "5.2.1"
+  }
+}

@@ -177,7 +177,9 @@ Q2 的籌碼資料表在 Q2 開始時再定案並以遷移加入。
 | `quotes validate -c quotes.toml` | 只檢查 config |
 | `quotes chart -c quotes.toml` | 依資料庫重新產生 K 線網頁（`chart.auto = true` 時 `run` 完成後也會自動產生） |
 
-結束代碼與 gleaner 相同：0 成功（含部分請求失敗）、1 config 錯誤、2 執行中斷。
+結束代碼與 gleaner 相同：0 成功（含部分請求失敗）、1 config 錯誤、2 執行中斷（包括另一個 `quotes run` 或 `quotes chart` 正在執行）。
+
+同一時間只允許一個 `quotes run` 或 `quotes chart`：以資料庫所在目錄的 `quotes.lock` 加作業系統檔案鎖，程式結束（含當機、斷電）時自動釋放，不需手動刪除。`--dry-run` 不寫資料庫，不受限制。
 
 排程：每個交易日 15:30 以後執行一次即可（日盤收盤後資料公布；當天的盤後資料已在前一晚的夜盤產生）。期交所期貨與選擇權的結算價、未平倉約在收盤後公布，若執行時尚未公布，下一次執行會在 `lookback_days` 內補上並記為「更新」。
 

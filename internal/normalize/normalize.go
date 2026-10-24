@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"unicode"
@@ -41,11 +42,12 @@ func URL(raw string) (string, error) {
 	if (u.Scheme == "http" && port == "80") || (u.Scheme == "https" && port == "443") {
 		port = ""
 	}
-	if port != "" {
-		u.Host = host + ":" + port
-	} else if strings.Contains(host, ":") {
+	switch {
+	case port != "":
+		u.Host = net.JoinHostPort(host, port) // brackets IPv6 hosts
+	case strings.Contains(host, ":"):
 		u.Host = "[" + host + "]"
-	} else {
+	default:
 		u.Host = host
 	}
 	u.User = nil
@@ -103,7 +105,7 @@ func CheckFileName(name string) error {
 		return errors.New("must not be empty")
 	}
 	if name == "." || name == ".." {
-		return errors.New("must not be . or ..")
+		return errors.New(`must not be "." or ".."`)
 	}
 	for _, r := range name {
 		if isUnsafeRune(r) {

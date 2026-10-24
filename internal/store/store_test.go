@@ -131,3 +131,15 @@ func TestReopenAndReadOnly(t *testing.T) {
 		t.Errorf("missing db err = %v", err)
 	}
 }
+
+func TestOpenUnusualPath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "王 小明", "資料 #1 %20", "index.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("database not at the requested path: %v", err)
+	}
+}

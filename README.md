@@ -57,3 +57,7 @@ quotes chart -c quotes.toml               # 依資料庫重新產生 K 線網頁
 - `logs/raw/`：交易所回應格式不符時保存的原始回應，回報問題時請附上
 
 排程建議：每個交易日 15:30 以後執行一次 `quotes run`。
+
+## 依賴套件與資安
+
+依賴清單、漏洞追蹤（Dependabot、每週 govulncheck）與升級步驟見 [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)。提交前執行 `make check`。

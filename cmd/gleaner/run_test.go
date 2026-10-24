@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/elvis3434/gleaner24/internal/config"
+	"github.com/elvis3434/gleaner24/internal/lock"
 	"github.com/elvis3434/gleaner24/internal/runlog"
 	"github.com/elvis3434/gleaner24/internal/store"
 )
@@ -294,6 +297,63 @@ func TestRunAborted(t *testing.T) {
 	}
 	if stats.EndReason != runlog.Aborted {
 		t.Errorf("reason = %s", stats.EndReason)
+	}
+}
+
+func TestRunRefusesToOverlap(t *testing.T) {
+	site := newTestSite(t)
+	dir := t.TempDir()
+	cfg := testConfig(t, site.URL, dir, "")
+	held, err := lock.Acquire(filepath.Join(dir, "data", "gleaner.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = run(context.Background(), cfg, runOptions{Loc: taipei})
+	if !errors.Is(err, lock.ErrLocked) {
+		t.Errorf("run while locked: err = %v", err)
+	}
+	// A dry run writes nothing and may overlap.
+	if _, err := run(context.Background(), cfg, runOptions{DryRun: true, Loc: taipei}); err != nil {
+		t.Errorf("dry run while locked: %v", err)
+	}
+	held.Release()
+	if _, err := run(context.Background(), cfg, runOptions{Loc: taipei}); err != nil {
+		t.Errorf("run after release: %v", err)
+	}
+}
+
+func TestIsHTML(t *testing.T) {
+	for ct, want := range map[string]bool{
+		"": true, "text/html": true, "text/html; charset=big5": true, "application/xhtml+xml": true,
+		"application/pdf": false, "image/jpeg": false, "application/json": false,
+	} {
+		if got := isHTML(ct); got != want {
+			t.Errorf("isHTML(%q) = %v", ct, got)
+		}
+	}
+}
+
+func TestCanonical(t *testing.T) {
+	r := &runner{}
+	page, _ := url.Parse("https://news.example/2026/10/a.html?utm_source=x")
+	for raw, want := range map[string]string{
+		"https://news.example/2026/10/a.html":  "https://news.example/2026/10/a.html",
+		"/2026/10/a.html":                      "", // relative canonicals are resolved by extract, not here
+		"https://other.example/2026/10/a.html": "",
+		"https://news.example/":                "", // home page: misconfigured, ignored
+		"https://news.example":                 "",
+		"https://news.example/?p=123":          "https://news.example/?p=123",
+		"":                                     "",
+	} {
+		if got := r.canonical(raw, page); got != want {
+			t.Errorf("canonical(%q) = %q, want %q", raw, got, want)
+		}
+	}
+	for _, h := range []string{"https://news.example/", "https://news.example"} {
+		home, _ := url.Parse(h)
+		if got := r.canonical("https://news.example/", home); got != "https://news.example/" {
+			t.Errorf("home page canonical on %s = %q", h, got)
+		}
 	}
 }
 

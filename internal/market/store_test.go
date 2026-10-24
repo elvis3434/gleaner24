@@ -101,3 +101,23 @@ func TestUpsertOutcomes(t *testing.T) {
 		t.Errorf("nil store = %+v", c)
 	}
 }
+
+// Windows user names (and so data paths) may contain spaces and CJK
+// characters; the file: URI must carry them through intact.
+func TestOpenStoreUnusualPath(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "王 小明", "資料 #1 %20")
+	path := filepath.Join(dir, "quotes.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("database not at the requested path: %v", err)
+	}
+	ro, err := OpenStoreReadOnly(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ro.Close()
+}

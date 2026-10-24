@@ -8,7 +8,7 @@
 ## 規則
 
 - 規格以 docs/SPEC.md 為準；與規格衝突時先提出，不自行改變設計。
-- Go module 為 `github.com/elvis3434/gleaner24`，執行檔為 `gleaner`（`cmd/gleaner`）與 `quotes`（`cmd/quotes`）。兩者只共用 `internal/crawler` 與 `internal/runlog`；行情專用的程式放在 `internal/market/`。
+- Go module 為 `github.com/elvis3434/gleaner24`，執行檔為 `gleaner`（`cmd/gleaner`）與 `quotes`（`cmd/quotes`）。兩者只共用 `internal/crawler`、`internal/runlog` 與 `internal/lock`（防止同時執行的檔案鎖）；行情專用的程式放在 `internal/market/`。
 - Config 使用 TOML（`github.com/BurntSushi/toml`），範例檔為 `config.example.toml` 與 `quotes.example.toml`。
 - Go 1.26 以上（使用者決定採用各依賴的最新版，最新版 `modernc.org/sqlite` 與 `golang.org/x/*` 需要 Go 1.26）；只用純 Go 套件（不得依賴 cgo），必須能交叉編譯 `GOOS=windows GOARCH=amd64`。
 - 一次只實作 SPEC 的一個階段，完成後更新 docs/SPEC.md 中該階段的勾選清單。
@@ -17,6 +17,8 @@
 - 路徑一律用 filepath 處理，檔名避開 Windows 保留字元與保留名稱（CON、NUL 等）。
 - 時間一律帶時區（Asia/Taipei），輸出 RFC 3339。
 - 不加入任何需要 API key 或付費的服務。
+- 依賴套件與資安追蹤見 `docs/DEPENDENCIES.md`：新增或升級依賴後更新該文件的清單；新版發布滿 14 天才採用，安全修正例外；`go.mod` 的 `toolchain` 指定已修補的 Go 版本。分析工具（govulncheck、staticcheck）放在獨立的 `tools/go.mod`。
+- 提交前執行 `make check`（vet、test、staticcheck、govulncheck、Windows 交叉編譯）；雲端無法連到 vuln.go.dev 時用離線資料庫（`VULNDB=file:///...`，可由 `golang.org/x/vulndb` 模組以其 `cmd/gendb` 產生）。
 - 使用者以繁體中文溝通；程式碼註解與 commit 訊息可用英文。
 
 ## 開發環境注意事項

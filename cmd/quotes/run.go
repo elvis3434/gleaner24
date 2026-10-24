@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/elvis3434/gleaner24/internal/crawler"
+	"github.com/elvis3434/gleaner24/internal/lock"
 	"github.com/elvis3434/gleaner24/internal/market"
 	"github.com/elvis3434/gleaner24/internal/market/chart"
 	"github.com/elvis3434/gleaner24/internal/market/futures"
@@ -99,6 +100,13 @@ func run(ctx context.Context, cfg *market.Config, opts runOptions) (Stats, error
 	}
 
 	var err error
+	if !opts.DryRun {
+		l, err := lock.Acquire(LockPath(cfg))
+		if err != nil {
+			return r.stats, err
+		}
+		defer l.Release()
+	}
 	if opts.DryRun {
 		r.st, err = market.OpenStoreReadOnly(cfg.Output.DB)
 		if errors.Is(err, os.ErrNotExist) {
@@ -225,9 +233,15 @@ func (r *runner) saveRaw(name string, body []byte) (string, error) {
 	return p, os.WriteFile(p, body, 0o644)
 }
 
+// LockPath is the lock file that keeps quotes runs (and chart generation)
+// from overlapping.
+func LockPath(cfg *market.Config) string {
+	return filepath.Join(filepath.Dir(cfg.Output.DB), "quotes.lock")
+}
+
 // stopErr returns the context error when a failed request was caused by
 // the run being interrupted, and nil for an ordinary request failure.
-func stopErr(ctx context.Context, err error) error {
+func stopErr(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -253,7 +267,7 @@ func (r *runner) stock(ctx context.Context, mkt, label, symbol string) error {
 		d.Requests++
 		resp, err := r.fetch.Get(ctx, u)
 		if err != nil {
-			if stop := stopErr(ctx, err); stop != nil {
+			if stop := stopErr(ctx); stop != nil {
 				return stop
 			}
 			r.fail(u, "", nil, err)
@@ -296,7 +310,7 @@ func (r *runner) taifex(ctx context.Context, d *DatasetStats, endpoint, product,
 		d.Requests++
 		resp, err := r.fetch.Post(ctx, endpoint, market.TaifexForm(product, span.From, span.To))
 		if err != nil {
-			if stop := stopErr(ctx, err); stop != nil {
+			if stop := stopErr(ctx); stop != nil {
 				return stop
 			}
 			r.fail(what, "", nil, err)

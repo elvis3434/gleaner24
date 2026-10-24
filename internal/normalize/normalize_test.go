@@ -19,6 +19,9 @@ func TestURL(t *testing.T) {
 		{"https://example.com/x?", "https://example.com/x"},
 		{"  https://example.com/x  ", "https://example.com/x"},
 		{"https://example.com/%E5%8F%B0", "https://example.com/%E5%8F%B0"},
+		{"http://[::1]:8080/x", "http://[::1]:8080/x"},
+		{"http://[::1]:80/x", "http://[::1]/x"},
+		{"https://[2001:DB8::1]/x", "https://[2001:db8::1]/x"},
 	}
 	for _, tt := range tests {
 		got, err := URL(tt.in)

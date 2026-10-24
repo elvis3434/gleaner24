@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elvis3434/gleaner24/internal/lock"
 	"github.com/elvis3434/gleaner24/internal/market"
 	"github.com/elvis3434/gleaner24/internal/runlog"
 )
@@ -348,6 +350,48 @@ func TestChartCommand(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "4 個資料檔") {
 		t.Errorf("output: %s", out.String())
+	}
+}
+
+func TestRunRefusesToOverlap(t *testing.T) {
+	ex := newExchange(t)
+	cfg := testConfig(t, t.TempDir())
+	held, err := lock.Acquire(LockPath(cfg))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Release()
+	_, err = run(context.Background(), cfg, runOptions{From: date("2026-10-01"), To: date("2026-10-05"), Loc: taipei, Client: ex.client()})
+	if !errors.Is(err, lock.ErrLocked) {
+		t.Errorf("run while locked: %v", err)
+	}
+	if _, err := os.Stat(cfg.Output.DB); !os.IsNotExist(err) {
+		t.Error("database touched while another run holds the lock")
+	}
+}
+
+// A database created by the stage Q1 version (schema v1, no stock_names)
+// must still work with quotes chart.
+func TestChartMigratesOldDatabase(t *testing.T) {
+	ex := newExchange(t)
+	dir := t.TempDir()
+	cfg := testConfig(t, dir)
+	cfg.Chart.Auto = false
+	doRun(t, ex, cfg, false)
+	st, err := market.OpenStore(cfg.Output.DB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.DB().Exec(`DROP TABLE stock_names; PRAGMA user_version = 1`); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+
+	cfgFile := filepath.Join(dir, "q.toml")
+	os.WriteFile(cfgFile, []byte("[output]\ndb = '"+cfg.Output.DB+"'\n[chart]\ndir = '"+cfg.Chart.Dir+"'\n[stocks]\ntwse = [\"2330\"]\n"), 0o644)
+	var out, errb bytes.Buffer
+	if code := runMain([]string{"chart", "-c", cfgFile}, &out, &errb); code != exitOK {
+		t.Fatalf("chart on a v1 database = %d: %s", code, errb.String())
 	}
 }
 

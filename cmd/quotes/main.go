@@ -13,6 +13,7 @@ import (
 	"time"
 	_ "time/tzdata" // Windows has no system time zone database
 
+	"github.com/elvis3434/gleaner24/internal/lock"
 	"github.com/elvis3434/gleaner24/internal/market"
 	"github.com/elvis3434/gleaner24/internal/market/chart"
 	"github.com/elvis3434/gleaner24/internal/runlog"
@@ -149,9 +150,21 @@ func cmdChart(args []string, stdout, stderr io.Writer) int {
 	if !ok {
 		return exitConfig
 	}
-	st, err := market.OpenStoreReadOnly(cfg.Output.DB)
+	if _, err := os.Stat(cfg.Output.DB); err != nil {
+		fmt.Fprintf(stderr, "chart: %v (run quotes run first)\n", err)
+		return exitAborted
+	}
+	l, err := lock.Acquire(LockPath(cfg))
 	if err != nil {
-		fmt.Fprintf(stderr, "chart: open %s: %v (run quotes run first)\n", cfg.Output.DB, err)
+		fmt.Fprintf(stderr, "chart: %v\n", err)
+		return exitAborted
+	}
+	defer l.Release()
+	// Opened read-write so that a database from an older version is
+	// migrated (e.g. stock_names, added in stage Q3) before it is read.
+	st, err := market.OpenStore(cfg.Output.DB)
+	if err != nil {
+		fmt.Fprintf(stderr, "chart: %v\n", err)
 		return exitAborted
 	}
 	defer st.Close()
