@@ -1,0 +1,62 @@
+# Build, test and security checks (docs/DEPENDENCIES.md).
+#
+# Runs on every push, and weekly on main so that newly published
+# vulnerabilities in unchanged dependencies or in the Go toolchain still
+# fail a run and trigger GitHub's failure notification.
+name: CI
+
+on:
+  push:
+  schedule:
+    - cron: "17 0 * * 1" # Monday 08:17 Asia/Taipei
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# setup-go installs the Go version named by the toolchain directive in
+# go.mod (and sets GOTOOLCHAIN=local); the first test step checks it.
+
+jobs:
+  test:
+    name: vet, test, lint, Windows build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+      - name: Toolchain is the one pinned in go.mod
+        run: test "$(go env GOVERSION)" = "$(go mod edit -json | jq -r .Toolchain)"
+      - run: go vet ./...
+      - run: go test ./...
+      - run: make lint
+      - name: go.mod and go.sum are tidy
+        run: |
+          go mod tidy -diff
+          go mod tidy -C tools -diff
+      - run: make windows
+
+  vulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+      - run: make vulncheck
+
+  npm-audit:
+    name: npm audit (vendored chart library)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npm audit --package-lock-only --audit-level=low
+        working-directory: internal/market/chart/assets

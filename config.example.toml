@@ -1,0 +1,62 @@
+# gleaner 設定範例。複製為 config.toml 後修改。
+# 檢查語法：gleaner validate -c config.toml
+#
+# 目前開發進度：階段 1。實際會處理的是 [[sources.feeds]] 與 [[topics]]；
+# [[sources.sites]]、google_news、語言判定與圖片會在之後的階段啟用，
+# 現在填寫只會做格式檢查。
+
+[output]
+archive_dir = "./archive"        # archive/2026/10/19/<topic>/<slug>.md
+log_dir     = "./logs"           # logs/collect_YYYYMMDD_HHMM.log
+db          = "./data/index.db"
+on_update   = "keep_versions"    # keep_versions | overwrite
+
+[crawl]
+user_agent            = "Gleaner/1.0 (personal archive)"
+per_host_delay        = "2s"     # 同一網站兩次請求的最小間隔
+concurrency           = 4        # 同時處理的網站數（階段 2）
+timeout               = "20s"
+retries               = 2        # 逾時與 5xx 的重試次數
+respect_robots        = true     # 階段 2
+max_pages_per_run     = 2000     # 每次執行的總請求上限
+recent_days           = 7        # 只處理最近 N 天發布的內容（階段 2）
+recheck_days          = 3        # 已歸檔頁面 N 天內不重抓（階段 2）
+follow_external_links = false
+
+# [[sources.sites]]              # 階段 2
+# name          = "example-jp"
+# start_urls    = ["https://example.jp/news/"]
+# use_sitemap   = true
+# max_depth     = 2
+# max_pages     = 200
+# include_paths = ["/news/"]
+# exclude_paths = ["/tag/", "/login"]
+# languages     = ["ja"]
+# render_js     = false
+
+[[sources.feeds]]
+name            = "example-feed"
+url             = "https://example.com/feed.xml"
+languages       = ["en"]
+fetch_full_text = true           # 依 feed 連結抓回全文再比對；false 則只用 feed 內的摘要或內文
+
+[sources.google_news]            # 選配（階段 4），非官方保證的介面
+enabled  = false
+editions = ["zh-TW", "ja", "en"]
+
+[[topics]]
+name             = "tsmc"        # 也是歸檔的資料夾名稱
+# 語法：AND、OR、NOT（需大寫）、括號、"含空白的詞組"；
+# 優先順序 NOT > AND > OR；兩個詞並列視為 AND。
+query            = '(台積電 OR TSMC) AND (營收 OR 財報) NOT 傳聞'
+languages        = ["zh-TW", "en", "ja"]
+match_in         = ["title", "body"]
+case_sensitive   = false
+cn_variant_merge = true          # 繁簡互通（階段 2）
+sites            = []            # 空白 = 套用到所有來源；否則填來源的 name
+
+  [topics.images]                # 階段 3
+  enabled                = true
+  min_width              = 300
+  require_keyword_in_alt = false
+  max_per_page           = 10

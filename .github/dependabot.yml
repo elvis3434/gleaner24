@@ -1,0 +1,67 @@
+# Dependency update and security tracking (docs/DEPENDENCIES.md).
+#
+# Version updates wait 14 days after a release (cooldown) so that a
+# compromised or broken release is likely to be caught by others first.
+# Security updates for known vulnerabilities are not delayed; they need
+# "Dependabot security updates" enabled in the repository settings.
+version: 2
+updates:
+  # Libraries compiled into gleaner.exe and quotes.exe.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Taipei
+    cooldown:
+      default-days: 14
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+
+  # Analysis tools pinned in tools/go.mod (govulncheck, staticcheck).
+  - package-ecosystem: gomod
+    directory: /tools
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Taipei
+    cooldown:
+      default-days: 14
+    groups:
+      tools:
+        patterns: ["*"]
+    commit-message:
+      prefix: tools
+
+  # lightweight-charts, vendored into the K-line page. A version bump here
+  # fails TestVendoredChartLibraryMatchesManifest until `make update-lwc`
+  # re-vendors the file.
+  - package-ecosystem: npm
+    directory: /internal/market/chart/assets
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Taipei
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: deps
+
+  # Actions used by .github/workflows (pinned by commit SHA).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

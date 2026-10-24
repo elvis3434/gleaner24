@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>行情 K 線</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f6f7f9; --text: #1c2024; --muted: #60646c;
+    --border: #d9dce1; --accent: #0b6bcb; --grid: #eef0f3;
+    --up: #e5484d; --down: #30a46c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111315; --panel: #1a1d20; --text: #e8eaed; --muted: #9ba1a6;
+      --border: #2e3338; --accent: #5ea8f2; --grid: #1f2326;
+      --up: #f2555a; --down: #3dba7c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header { padding: 12px 16px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  h1 { font-size: 16px; margin: 0 0 8px; font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .group { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .group button {
+    border: 0; background: transparent; color: var(--text); padding: 5px 12px; font: inherit; cursor: pointer;
+  }
+  .group button + button { border-left: 1px solid var(--border); }
+  .group button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .group button:disabled { color: var(--muted); cursor: default; }
+  select {
+    font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; max-width: 100%;
+  }
+  label { color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  main { flex: 1; display: flex; flex-direction: column; min-height: 360px; padding: 8px 16px 0; }
+  #legend { min-height: 44px; font-variant-numeric: tabular-nums; }
+  #legend .title { font-weight: 600; }
+  #legend .up { color: var(--up); } #legend .down { color: var(--down); }
+  #legend span + span { margin-left: 10px; }
+  #chart { flex: 1; min-height: 320px; position: relative; }
+  #empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 16px; }
+  footer { padding: 8px 16px 12px; color: var(--muted); font-size: 12px; }
+  footer a { color: var(--accent); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>行情 K 線 <small id="generated" style="font-weight:400;color:var(--muted)"></small></h1>
+  <div class="controls">
+    <div class="group" id="kinds" role="group" aria-label="類別">
+      <button data-kind="stock">股票</button>
+      <button data-kind="fut">期貨</button>
+      <button data-kind="opt">選擇權</button>
+    </div>
+    <label>商品 <select id="item"></select></label>
+    <div class="group" id="futSeries" role="group" aria-label="連續月" hidden>
+      <button data-v="near">近月連續</button>
+      <button data-v="next">次近月連續</button>
+    </div>
+    <label id="expiryBox" hidden>到期 <select id="expiry"></select></label>
+    <label id="strikeBox" hidden>履約價 <select id="strike"></select></label>
+    <div class="group" id="right" role="group" aria-label="買賣權" hidden>
+      <button data-v="C">買權</button>
+      <button data-v="P">賣權</button>
+    </div>
+    <div class="group" id="session" role="group" aria-label="時段" hidden>
+      <button data-v="day">日盤</button>
+      <button data-v="full">全日盤</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="legend"></div>
+  <div id="chart"><div id="empty"></div></div>
+</main>
+<footer>
+  價格為原始成交價（尚未還原除權息）。股票成交量單位為張，期貨、選擇權為口。全日盤 = 前一晚夜盤 + 當日日盤。
+  圖表元件：<a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™（Copyright © TradingView, Inc.，Apache License 2.0，見 LICENSE-lightweight-charts.txt）。
+</footer>
+
+<script src="lightweight-charts.js"></script>
+<script>
+"use strict";
+// Data scripts call QD.catalog(...) and QD.add(key, data). They are loaded
+// with <script> tags because browsers block fetch() on file:// pages.
+const QD = {
+  data: {}, waiting: {},
+  catalog(c) { this.cat = c; },
+  add(key, d) { this.data[key] = d; (this.waiting[key] || []).forEach(f => f()); delete this.waiting[key]; },
+  load(key) {
+    if (this.data[key]) return Promise.resolve(this.data[key]);
+    return new Promise((resolve, reject) => {
+      (this.waiting[key] = this.waiting[key] || []).push(() => resolve(this.data[key]));
+      const s = document.createElement("script");
+      s.src = "data/" + key + ".js";
+      s.onerror = () => reject(new Error("無法載入 data/" + key + ".js"));
+      document.head.appendChild(s);
+    });
+  },
+};
+</script>
+<script src="data/catalog.js"></script>
+<script>
+"use strict";
+(function () {
+  const $ = id => document.getElementById(id);
+  const cat = QD.cat || { stocks: [], futures: [], options: [] };
+  const state = { kind: "", item: "", fut: "near", expiry: "", strike: "", right: "C", session: "day" };
+  const marketName = { twse: "上市", tpex: "上櫃" };
+  let chart, candles, volume, markers, current = [], currentMonths = null;
+
+  if (cat.generated) $("generated").textContent = "產生於 " + cat.generated.replace("T", " ").slice(0, 16);
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function chartOptions() {
+    return {
+      autoSize: true,
+      layout: { background: { type: "solid", color: css("--bg") }, textColor: css("--text"), attributionLogo: true,
+                fontFamily: getComputedStyle(document.body).fontFamily,
+                panes: { separatorColor: css("--border"), separatorHoverColor: css("--grid") } },
+      grid: { vertLines: { color: css("--grid") }, horzLines: { color: css("--grid") } },
+      rightPriceScale: { borderColor: css("--border") },
+      timeScale: { borderColor: css("--border") },
+      localization: { locale: "zh-TW", dateFormat: "yyyy-MM-dd" },
+      crosshair: { mode: 0 },
+    };
+  }
+  function candleOptions() {
+    const up = css("--up"), down = css("--down");
+    return { upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down };
+  }
+
+  function initChart() {
+    chart = LightweightCharts.createChart($("chart"), chartOptions());
+    candles = chart.addSeries(LightweightCharts.CandlestickSeries, candleOptions());
+    volume = chart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, 1);
+    try { chart.panes()[0].setStretchFactor(3); chart.panes()[1].setStretchFactor(1); } catch (e) { /* older API */ }
+    markers = LightweightCharts.createSeriesMarkers(candles, []);
+    chart.subscribeCrosshairMove(p => legend(p && p.time ? p.time : null));
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      chart.applyOptions(chartOptions());
+      candles.applyOptions(candleOptions());
+      draw(current, lastMarkers);
+    });
+  }
+
+  let lastMarkers = [], title = "";
+  function draw(bars, rolls) {
+    current = bars; lastMarkers = rolls || [];
+    const up = css("--up"), down = css("--down");
+    candles.setData(bars.map(b => ({ time: b[0], open: b[1], high: b[2], low: b[3], close: b[4] })));
+    volume.setData(bars.map(b => ({ time: b[0], value: b[5], color: (b[4] >= b[1] ? up : down) + "99" })));
+    markers.setMarkers(lastMarkers.map(m => ({ time: m.time, position: "aboveBar", shape: "arrowDown", color: css("--accent"), text: m.text })));
+    chart.timeScale().fitContent();
+    const empty = $("empty");
+    empty.style.display = bars.length ? "none" : "flex";
+    empty.textContent = bars.length ? "" : "這個項目在資料庫中沒有成交資料。";
+    legend(null);
+  }
+
+  function fmt(v) { return v == null ? "-" : v.toLocaleString("zh-TW", { maximumFractionDigits: 3 }); }
+
+  function legend(time) {
+    const el = $("legend");
+    if (!current.length) { el.innerHTML = ""; el.append(span(title, "title")); return; }
+    let i = current.length - 1;
+    if (time) { const t = typeof time === "string" ? time : `${time.year}-${String(time.month).padStart(2, "0")}-${String(time.day).padStart(2, "0")}`;
+      const j = current.findIndex(b => b[0] === t); if (j >= 0) i = j; }
+    const b = current[i], prevBar = i > 0 ? current[i - 1] : null;
+    // On a continuous series' roll date the previous close belongs to the
+    // old contract, so a change against it would be meaningless.
+    const rolled = prevBar && currentMonths && currentMonths[b[0]] !== currentMonths[prevBar[0]];
+    const prev = prevBar && !rolled ? prevBar[4] : null;
+    const chg = prev == null ? null : b[4] - prev;
+    const cls = chg == null ? "" : chg >= 0 ? "up" : "down";
+    el.innerHTML = "";
+    el.append(span(title, "title"), document.createElement("br"));
+    const month = currentMonths && currentMonths[b[0]] ? "（" + currentMonths[b[0]] + "）" : "";
+    el.append(span(b[0] + month), span("開 " + fmt(b[1])), span("高 " + fmt(b[2])), span("低 " + fmt(b[3])),
+      span("收 " + fmt(b[4]), cls),
+      span(rolled ? "換月" : chg == null ? "" : (chg >= 0 ? "+" : "") + fmt(chg) + (prev ? `（${(chg / prev * 100).toFixed(2)}%）` : ""), cls),
+      span("量 " + fmt(b[5])));
+  }
+  function span(text, cls) { const s = document.createElement("span"); s.textContent = text; if (cls) s.className = cls; return s; }
+
+  function pressed(groupId, value) {
+    for (const b of $(groupId).querySelectorAll("button")) b.setAttribute("aria-pressed", String((b.dataset.v || b.dataset.kind) === value));
+  }
+  function fill(select, options, value) {
+    select.innerHTML = "";
+    for (const [v, text] of options) { const o = document.createElement("option"); o.value = v; o.textContent = text; select.append(o); }
+    if (options.some(o => o[0] === value)) select.value = value;
+    return select.value;
+  }
+
+  function items() {
+    if (state.kind === "stock") return cat.stocks.map(s => [s.key, `${s.symbol} ${s.name || ""}（${marketName[s.market] || s.market}）`]);
+    if (state.kind === "fut") return cat.futures.map(f => [f.key, f.product]);
+    return cat.options.map(o => [o.product, o.product]);
+  }
+
+  async function render() {
+    for (const b of $("kinds").querySelectorAll("button")) {
+      const k = b.dataset.kind;
+      b.disabled = !(k === "stock" ? cat.stocks.length : k === "fut" ? cat.futures.length : cat.options.length);
+    }
+    pressed("kinds", state.kind);
+    state.item = fill($("item"), items(), state.item);
+    const isFut = state.kind === "fut", isOpt = state.kind === "opt";
+    $("futSeries").hidden = !isFut; $("expiryBox").hidden = !isOpt; $("strikeBox").hidden = !isOpt;
+    $("right").hidden = !isOpt; $("session").hidden = !(isFut || isOpt);
+    pressed("futSeries", state.fut); pressed("right", state.right); pressed("session", state.session);
+    currentMonths = null;
+
+    try {
+      if (state.kind === "stock") {
+        const s = cat.stocks.find(x => x.key === state.item);
+        if (!s) return draw([], []);
+        title = `${s.symbol} ${s.name || ""}　日 K`;
+        const d = await QD.load(s.key);
+        draw(d.day, []);
+      } else if (isFut) {
+        const f = cat.futures.find(x => x.key === state.item);
+        if (!f) return draw([], []);
+        const d = (await QD.load(f.key))[state.fut];
+        title = `${f.product} ${state.fut === "near" ? "近月" : "次近月"}連續　日 K（${state.session === "day" ? "日盤" : "全日盤"}）`;
+        currentMonths = d.months;
+        draw(d[state.session], d.rolls);
+      } else if (isOpt) {
+        const o = cat.options.find(x => x.product === state.item);
+        if (!o) return draw([], []);
+        const exps = o.expiries.slice().reverse(); // latest first
+        state.expiry = fill($("expiry"), exps.map(e => [e.key, e.month + (e.expiry ? `（${e.expiry} 到期）` : "")]), state.expiry);
+        const d = await QD.load(state.expiry);
+        const strikes = d.strikes.map(k => [String(k), k.toLocaleString("zh-TW")]);
+        if (!strikes.some(s => s[0] === state.strike) && strikes.length) state.strike = strikes[Math.floor(strikes.length / 2)][0];
+        state.strike = fill($("strike"), strikes, state.strike);
+        const series = d.series[state.strike + state.right] || { day: [], full: [] };
+        const e = o.expiries.find(x => x.key === state.expiry);
+        title = `${o.product} ${e ? e.month : ""} ${Number(state.strike).toLocaleString("zh-TW")} ${state.right === "C" ? "買權" : "賣權"}　日 K（${state.session === "day" ? "日盤" : "全日盤"}）`;
+        draw(series[state.session], []);
+      } else {
+        title = "資料庫中還沒有資料：執行 quotes run 後會自動產生。";
+        draw([], []);
+      }
+    } catch (err) {
+      title = err.message; draw([], []);
+    }
+    saveHash();
+  }
+
+  // State is kept in the URL fragment: #kind/item/fut/expiry/strike/right/session
+  function saveHash() {
+    const h = [state.kind, state.item, state.fut, state.expiry, state.strike, state.right, state.session].map(encodeURIComponent).join("/");
+    history.replaceState(null, "", "#" + h);
+  }
+  function loadHash() {
+    const p = location.hash.slice(1).split("/").map(decodeURIComponent);
+    if (p.length === 7) [state.kind, state.item, state.fut, state.expiry, state.strike, state.right, state.session] = p;
+    if (!["stock", "fut", "opt"].includes(state.kind) || !(state.kind === "stock" ? cat.stocks : state.kind === "fut" ? cat.futures : cat.options).length) {
+      state.kind = cat.stocks.length ? "stock" : cat.futures.length ? "fut" : cat.options.length ? "opt" : "";
+    }
+    if (!["near", "next"].includes(state.fut)) state.fut = "near";
+    if (!["C", "P"].includes(state.right)) state.right = "C";
+    if (!["day", "full"].includes(state.session)) state.session = "day";
+  }
+
+  function onGroup(id, field, reset) {
+    $(id).addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b || b.disabled) return;
+      state[field] = b.dataset.v || b.dataset.kind;
+      if (reset) { state.item = ""; state.expiry = ""; state.strike = ""; }
+      render();
+    });
+  }
+  onGroup("kinds", "kind", true);
+  onGroup("futSeries", "fut");
+  onGroup("right", "right");
+  onGroup("session", "session");
+  $("item").addEventListener("change", e => { state.item = e.target.value; state.expiry = ""; state.strike = ""; render(); });
+  $("expiry").addEventListener("change", e => { state.expiry = e.target.value; render(); });
+  $("strike").addEventListener("change", e => { state.strike = e.target.value; render(); });
+
+  // Follow manual edits of the fragment and back/forward navigation
+  // (saveHash uses replaceState, which does not fire this event).
+  addEventListener("hashchange", () => { loadHash(); render(); });
+
+  initChart();
+  loadHash();
+  render();
+})();
+</script>
+</body>
+</html>

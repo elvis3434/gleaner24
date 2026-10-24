@@ -1,0 +1,2 @@
+testdata/quotes/*.csv -text
+testdata/quotes/*.json -text

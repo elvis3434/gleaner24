@@ -1,0 +1,41 @@
+# quotes 設定範例（台股、期貨、選擇權每日行情）。複製為 quotes.toml 後修改。
+# 檢查語法：quotes validate -c quotes.toml
+# 規格：docs/SPEC-quotes.md
+
+[output]
+db      = "./data/quotes.db"
+log_dir = "./logs"               # logs/quotes_YYYYMMDD_HHMM.log
+
+[crawl]
+user_agent     = "Gleaner/1.0 (personal archive)"
+per_host_delay = "3s"            # 證交所對短時間大量請求會暫時封鎖，不建議調低
+timeout        = "30s"
+retries        = 2
+lookback_days  = 5               # 每次執行重抓最近 N 個日曆日，補上漏抓或晚公布的資料
+
+[stocks]
+twse = ["2330", "2317"]          # 上市股票代號（含 ETF，例如 0050）
+tpex = ["6223"]                  # 上櫃股票代號
+
+[chart]
+dir  = "./charts"                # K 線網頁輸出目錄，用瀏覽器開啟 charts/index.html
+auto = true                      # 每次 quotes run 完成後自動重新產生；也可手動執行 quotes chart
+
+# 期貨：每個商品一段 [[futures]]，可寫多段。商品代號用期交所的代號，
+# 例如 TX（臺股期貨）、MTX（小型臺指）。
+[[futures]]
+product         = "TX"
+months          = 2              # 只收最近 N 個月契約（週契約不收）；0 = 全部。K 線的近月、次近月連續需要至少 2
+include_spreads = false          # 是否收價差委託（例如 202610/202611）
+sessions        = ["regular", "after_hours"]   # regular = 一般（日盤），after_hours = 盤後（夜盤）
+
+[[futures]]
+product = "MTX"
+
+# 選擇權：每個商品一段 [[options]]，例如 TXO（臺指選擇權）。
+[[options]]
+product      = "TXO"
+expiries     = 2                 # 只收最近 N 個到期（依契約到期日排序，含週選）；0 = 全部
+weekly       = true              # 是否包含週選擇權
+strike_range = 0.05              # 只收價平上下 5% 的履約價；0 = 全部
+sessions     = ["regular", "after_hours"]
