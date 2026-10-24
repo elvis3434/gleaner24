@@ -14,8 +14,8 @@ on:
 permissions:
   contents: read
 
-env:
-  GOTOOLCHAIN: auto
+# setup-go installs the Go version named by the toolchain directive in
+# go.mod (and sets GOTOOLCHAIN=local); the first test step checks it.
 
 jobs:
   test:
