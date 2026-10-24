@@ -1,9 +1,9 @@
 # gleaner24
 
-gleaner 是一個 Go 撰寫的命令列工具：依 `config.toml` 設定，從指定網站與 RSS 收集符合關鍵字條件（AND / OR / NOT）的內容，存成附有來源網址與收集日期的 Markdown 歸檔，並在每次執行後寫入收集 log。
+本 repo 有兩個 Go 命令列工具：
 
-- 規格：[docs/SPEC.md](docs/SPEC.md)
-- 開發狀態：階段 1（RSS / Atom + 關鍵字 + 歸檔）完成；sites 爬行、語言判定、圖片在後續階段。
+- **gleaner**：依 `config.toml` 設定，從指定網站與 RSS 收集符合關鍵字條件（AND / OR / NOT）的內容，存成附有來源網址與收集日期的 Markdown 歸檔，並在每次執行後寫入收集 log。規格：[docs/SPEC.md](docs/SPEC.md)。階段 1（RSS / Atom + 關鍵字 + 歸檔）完成。
+- **quotes**：依 `quotes.toml` 指定的商品，從證交所、櫃買中心、期交所的免費公開資料收集台股、期貨、選擇權（含夜盤）的每日行情，存入 SQLite。規格：[docs/SPEC-quotes.md](docs/SPEC-quotes.md)。階段 Q1（每日行情）完成；籌碼資料為階段 Q2。
 
 ## 建置
 
@@ -12,15 +12,16 @@ gleaner 是一個 Go 撰寫的命令列工具：依 `config.toml` 設定，從�
 ```sh
 # 在 Windows 上直接建置
 go build -o gleaner.exe ./cmd/gleaner
+go build -o quotes.exe ./cmd/quotes
 
 # 在 Linux / macOS 交叉編譯 Windows 版
-make windows        # 等同 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gleaner.exe ./cmd/gleaner
+make windows        # 產生 gleaner.exe 與 quotes.exe
 
 make test           # go test ./...
 make vet            # go vet ./...
 ```
 
-## 使用
+## 使用 gleaner
 
 ```sh
 copy config.example.toml config.toml      # 然後修改 feeds 與 topics
@@ -37,3 +38,19 @@ gleaner test-query "台積電 AND 營收 NOT 傳聞" page.html   # 對單一檔�
 - `data/index.db`：SQLite 索引（去重、版本、執行紀錄）
 
 結束代碼：0 成功（含部分頁面失敗）、1 設定錯誤、2 執行中斷。
+
+## 使用 quotes
+
+```sh
+copy quotes.example.toml quotes.toml      # 然後修改股票代號與期貨、選擇權商品
+quotes validate -c quotes.toml            # 檢查設定
+quotes run --dry-run -c quotes.toml       # 照常抓取與解析，不寫入資料庫
+quotes run -c quotes.toml                 # 收集最近 lookback_days 天（預設 5 天）
+quotes run -c quotes.toml --from 2026-09-01 --to 2026-09-30   # 補一段歷史資料
+```
+
+- `data/quotes.db`：SQLite，資料表 `stock_daily`、`futures_daily`、`options_daily`、`runs`
+- `logs/quotes_YYYYMMDD_HHMM.log`：每次執行的 log 與摘要
+- `logs/raw/`：交易所回應格式不符時保存的原始回應，回報問題時請附上
+
+排程建議：每個交易日 15:30 以後執行一次 `quotes run`。
