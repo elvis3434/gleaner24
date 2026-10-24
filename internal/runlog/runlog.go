@@ -64,10 +64,16 @@ type Log struct {
 // (two runs in the same minute) a _2, _3, ... suffix is added. Lines are
 // also copied to echo when it is non-nil.
 func Create(dir string, started time.Time, echo io.Writer) (*Log, error) {
+	return CreateNamed(dir, "collect", started, echo)
+}
+
+// CreateNamed is Create with a different file name prefix, for tools other
+// than the article collector (e.g. "quotes" gives quotes_YYYYMMDD_HHMM.log).
+func CreateNamed(dir, prefix string, started time.Time, echo io.Writer) (*Log, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	base := "collect_" + started.Format("20060102_1504")
+	base := prefix + "_" + started.Format("20060102_1504")
 	for i := 1; ; i++ {
 		name := base
 		if i > 1 {
@@ -196,6 +202,13 @@ func (l *Log) Finish(reason string) Stats {
 	return *s
 }
 
+// WriteString writes s to the log as is (no timestamp).
+func (l *Log) WriteString(s string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	io.WriteString(l.w, s)
+}
+
 // WriteSummary writes the summary table for s to the log.
 func (l *Log) WriteSummary(s Stats) {
 	l.mu.Lock()
@@ -238,6 +251,10 @@ func Summary(s Stats) string {
 	writeMap(&b, "各網站有效筆數", s.PerSite)
 	return b.String()
 }
+
+// Pad right-pads s with spaces to the given display width, counting CJK
+// and full-width characters as two columns.
+func Pad(s string, width int) string { return pad(s, width) }
 
 // pad right-pads s with spaces to the given display width, counting CJK
 // and full-width characters as two columns.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -134,11 +135,31 @@ func TestMaxBody(t *testing.T) {
 	defer srv.Close()
 	f := New("t", 5*time.Second, 0, 0)
 	f.MaxBody = 10
+	if _, err := f.Get(context.Background(), srv.URL); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("err = %v, want ErrTooLarge", err)
+	}
+	f.MaxBody = 1000
 	resp, err := f.Get(context.Background(), srv.URL)
+	if err != nil || len(resp.Body) != 1000 {
+		t.Errorf("body exactly at limit: %v, %d bytes", err, len(resp.Body))
+	}
+}
+
+func TestPost(t *testing.T) {
+	var method, ctype, got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, ctype = r.Method, r.Header.Get("Content-Type")
+		r.ParseForm()
+		got = r.PostForm.Get("commodity_id") + "|" + r.PostForm.Get("queryStartDate")
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	f := New("t", 5*time.Second, 0, 0)
+	resp, err := f.Post(context.Background(), srv.URL, url.Values{"commodity_id": {"TX"}, "queryStartDate": {"2026/10/05"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Body) != 10 {
-		t.Errorf("body length = %d", len(resp.Body))
+	if method != "POST" || ctype != "application/x-www-form-urlencoded" || got != "TX|2026/10/05" || string(resp.Body) != "ok" {
+		t.Errorf("method=%s ctype=%s form=%s body=%s", method, ctype, got, resp.Body)
 	}
 }

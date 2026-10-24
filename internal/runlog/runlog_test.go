@@ -80,6 +80,22 @@ func TestStatsAndSummary(t *testing.T) {
 	}
 }
 
+func TestCreateNamed(t *testing.T) {
+	l, err := CreateNamed(t.TempDir(), "quotes", time.Date(2026, 10, 24, 15, 30, 0, 0, taipei), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	if filepath.Base(l.Path()) != "quotes_20261024_1530.log" {
+		t.Errorf("path = %s", l.Path())
+	}
+	l.WriteString("raw\n")
+	data, _ := os.ReadFile(l.Path())
+	if string(data) != "raw\n" {
+		t.Errorf("content = %q", data)
+	}
+}
+
 func TestPad(t *testing.T) {
 	if got := pad("新增", 6); got != "新增  " {
 		t.Errorf("pad CJK = %q", got)

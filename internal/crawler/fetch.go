@@ -77,6 +77,16 @@ func (f *Fetcher) Requests() int {
 // Get fetches rawURL, waiting for the per-host delay and retrying transient
 // failures. Non-2xx responses are returned as *StatusError.
 func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Response, error) {
+	return f.fetch(ctx, http.MethodGet, rawURL, nil)
+}
+
+// Post submits form as application/x-www-form-urlencoded, with the same
+// politeness and retry rules as Get. Use it only for idempotent queries.
+func (f *Fetcher) Post(ctx context.Context, rawURL string, form url.Values) (*Response, error) {
+	return f.fetch(ctx, http.MethodPost, rawURL, form)
+}
+
+func (f *Fetcher) fetch(ctx context.Context, method, rawURL string, form url.Values) (*Response, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
@@ -96,7 +106,7 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Response, error) {
 			f.requests++
 			f.mu.Unlock()
 		}
-		resp, err := f.do(ctx, rawURL)
+		resp, err := f.do(ctx, method, rawURL, form)
 		if err == nil {
 			return resp, nil
 		}
@@ -108,13 +118,25 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string) (*Response, error) {
 	return nil, lastErr
 }
 
-func (f *Fetcher) do(ctx context.Context, rawURL string) (*Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+// ErrTooLarge is returned when a response body exceeds MaxBody. The body is
+// discarded rather than returned truncated, so callers never parse partial
+// documents as if they were complete.
+var ErrTooLarge = errors.New("response body exceeds size limit")
+
+func (f *Fetcher) do(ctx context.Context, method, rawURL string, form url.Values) (*Response, error) {
+	var body io.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	}
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", f.UserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	if form != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	resp, err := f.Client.Do(req)
 	if err != nil {
 		return nil, err
@@ -128,15 +150,18 @@ func (f *Fetcher) do(ctx context.Context, rawURL string) (*Response, error) {
 	if limit <= 0 {
 		limit = DefaultMaxBody
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, limit))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("%s %s: %w (%d bytes)", method, rawURL, ErrTooLarge, limit)
 	}
 	return &Response{
 		URL:        resp.Request.URL.String(),
 		StatusCode: resp.StatusCode,
 		Header:     resp.Header,
-		Body:       body,
+		Body:       data,
 	}, nil
 }
 
