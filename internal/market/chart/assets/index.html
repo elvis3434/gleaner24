@@ -125,7 +125,8 @@ const QD = {
     return {
       autoSize: true,
       layout: { background: { type: "solid", color: css("--bg") }, textColor: css("--text"), attributionLogo: true,
-                fontFamily: getComputedStyle(document.body).fontFamily },
+                fontFamily: getComputedStyle(document.body).fontFamily,
+                panes: { separatorColor: css("--border"), separatorHoverColor: css("--grid") } },
       grid: { vertLines: { color: css("--grid") }, horzLines: { color: css("--grid") } },
       rightPriceScale: { borderColor: css("--border") },
       timeScale: { borderColor: css("--border") },
@@ -174,7 +175,11 @@ const QD = {
     let i = current.length - 1;
     if (time) { const t = typeof time === "string" ? time : `${time.year}-${String(time.month).padStart(2, "0")}-${String(time.day).padStart(2, "0")}`;
       const j = current.findIndex(b => b[0] === t); if (j >= 0) i = j; }
-    const b = current[i], prev = i > 0 ? current[i - 1][4] : null;
+    const b = current[i], prevBar = i > 0 ? current[i - 1] : null;
+    // On a continuous series' roll date the previous close belongs to the
+    // old contract, so a change against it would be meaningless.
+    const rolled = prevBar && currentMonths && currentMonths[b[0]] !== currentMonths[prevBar[0]];
+    const prev = prevBar && !rolled ? prevBar[4] : null;
     const chg = prev == null ? null : b[4] - prev;
     const cls = chg == null ? "" : chg >= 0 ? "up" : "down";
     el.innerHTML = "";
@@ -182,7 +187,7 @@ const QD = {
     const month = currentMonths && currentMonths[b[0]] ? "（" + currentMonths[b[0]] + "）" : "";
     el.append(span(b[0] + month), span("開 " + fmt(b[1])), span("高 " + fmt(b[2])), span("低 " + fmt(b[3])),
       span("收 " + fmt(b[4]), cls),
-      span(chg == null ? "" : (chg >= 0 ? "+" : "") + fmt(chg) + (prev ? `（${(chg / prev * 100).toFixed(2)}%）` : ""), cls),
+      span(rolled ? "換月" : chg == null ? "" : (chg >= 0 ? "+" : "") + fmt(chg) + (prev ? `（${(chg / prev * 100).toFixed(2)}%）` : ""), cls),
       span("量 " + fmt(b[5])));
   }
   function span(text, cls) { const s = document.createElement("span"); s.textContent = text; if (cls) s.className = cls; return s; }
@@ -227,7 +232,7 @@ const QD = {
         const f = cat.futures.find(x => x.key === state.item);
         if (!f) return draw([], []);
         const d = (await QD.load(f.key))[state.fut];
-        title = `${f.product} ${state.fut === "near" ? "近月" : "次近月"}連續　${state.session === "day" ? "日盤" : "全日盤"}日 K`;
+        title = `${f.product} ${state.fut === "near" ? "近月" : "次近月"}連續　日 K（${state.session === "day" ? "日盤" : "全日盤"}）`;
         currentMonths = d.months;
         draw(d[state.session], d.rolls);
       } else if (isOpt) {
@@ -241,7 +246,7 @@ const QD = {
         state.strike = fill($("strike"), strikes, state.strike);
         const series = d.series[state.strike + state.right] || { day: [], full: [] };
         const e = o.expiries.find(x => x.key === state.expiry);
-        title = `${o.product} ${e ? e.month : ""} ${Number(state.strike).toLocaleString("zh-TW")} ${state.right === "C" ? "買權" : "賣權"}　${state.session === "day" ? "日盤" : "全日盤"}日 K`;
+        title = `${o.product} ${e ? e.month : ""} ${Number(state.strike).toLocaleString("zh-TW")} ${state.right === "C" ? "買權" : "賣權"}　日 K（${state.session === "day" ? "日盤" : "全日盤"}）`;
         draw(series[state.session], []);
       } else {
         title = "資料庫中還沒有資料：執行 quotes run 後會自動產生。";
@@ -284,6 +289,10 @@ const QD = {
   $("item").addEventListener("change", e => { state.item = e.target.value; state.expiry = ""; state.strike = ""; render(); });
   $("expiry").addEventListener("change", e => { state.expiry = e.target.value; render(); });
   $("strike").addEventListener("change", e => { state.strike = e.target.value; render(); });
+
+  // Follow manual edits of the fragment and back/forward navigation
+  // (saveHash uses replaceState, which does not fire this event).
+  addEventListener("hashchange", () => { loadHash(); render(); });
 
   initChart();
   loadHash();

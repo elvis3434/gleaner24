@@ -22,6 +22,7 @@
 ## 開發環境注意事項
 
 - 雲端環境的網路存取可能受限（證交所、櫃買、期交所目前被擋），開發與測試以離線的 `testdata/` 為主；對真實網站的實測由使用者在本機 Windows 執行 `gleaner run --dry-run` 或 `quotes run --dry-run`。
+- K 線網頁的前端是 `internal/market/chart/assets/index.html`（純 HTML + JS，無建置步驟），圖表元件為內嵌的 TradingView Lightweight Charts 5.2.1（Apache-2.0）；頁面必須保留 TradingView 標示與連結（授權要求）。改前端後用 Playwright 在 Chromium 以 `file://` 開啟檢查 console 無錯誤。
 - 行情解析只能以官方回應實例為依據，不可自行編造回應格式；沒有實例的端點先請使用者在本機取得。`testdata/quotes/README.md` 記錄每個檔案的來源。
 - 每個階段完成後，提供 Windows 版 `gleaner.exe` 的建置方式（`make windows` 或對應的 `go build` 指令），並更新 `config.example.toml`。
 
@@ -35,4 +36,5 @@
 quotes：
 
 - [x] 階段 Q1：每日行情（股票、期貨、選擇權含夜盤）— 以官方回應實例離線測試完成，待使用者本機實測
-- [ ] 階段 Q2：籌碼（三大法人、融資融券、大額交易人、Put/Call 比）— 需先在本機取得各端點實際回應
+- [ ] 階段 Q2：籌碼（三大法人、融資融券、大額交易人、Put/Call 比）與除權息還原 — 需先在本機取得各端點實際回應
+- [x] 階段 Q3：K 線網頁（日 K；期貨近月 / 次近月連續、選擇權單一合約、日盤 / 全日盤）— 已在 Chromium 以 file:// 驗證

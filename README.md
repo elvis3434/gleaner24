@@ -3,7 +3,7 @@
 本 repo 有兩個 Go 命令列工具：
 
 - **gleaner**：依 `config.toml` 設定，從指定網站與 RSS 收集符合關鍵字條件（AND / OR / NOT）的內容，存成附有來源網址與收集日期的 Markdown 歸檔，並在每次執行後寫入收集 log。規格：[docs/SPEC.md](docs/SPEC.md)。階段 1（RSS / Atom + 關鍵字 + 歸檔）完成。
-- **quotes**：依 `quotes.toml` 指定的商品，從證交所、櫃買中心、期交所的免費公開資料收集台股、期貨、選擇權（含夜盤）的每日行情，存入 SQLite。規格：[docs/SPEC-quotes.md](docs/SPEC-quotes.md)。階段 Q1（每日行情）完成；籌碼資料為階段 Q2。
+- **quotes**：依 `quotes.toml` 指定的商品，從證交所、櫃買中心、期交所的免費公開資料收集台股、期貨、選擇權（含夜盤）的每日行情，存入 SQLite，並產生可離線開啟的日 K 線網頁。規格：[docs/SPEC-quotes.md](docs/SPEC-quotes.md)。階段 Q1（每日行情）、Q3（K 線網頁）完成；籌碼與除權息還原為階段 Q2。
 
 ## 建置
 
@@ -47,7 +47,10 @@ quotes validate -c quotes.toml            # 檢查設定
 quotes run --dry-run -c quotes.toml       # 照常抓取與解析，不寫入資料庫
 quotes run -c quotes.toml                 # 收集最近 lookback_days 天（預設 5 天）
 quotes run -c quotes.toml --from 2026-09-01 --to 2026-09-30   # 補一段歷史資料
+quotes chart -c quotes.toml               # 依資料庫重新產生 K 線網頁（run 完成後也會自動產生）
 ```
+
+- `charts/index.html`：日 K 線網頁，用瀏覽器直接開啟。股票、期貨近月 / 次近月連續、選擇權單一合約；期貨與選擇權可切換日盤 / 全日盤。圖表元件為 [TradingView](https://www.tradingview.com/) Lightweight Charts™（Apache-2.0）
 
 - `data/quotes.db`：SQLite，資料表 `stock_daily`、`futures_daily`、`options_daily`、`runs`
 - `logs/quotes_YYYYMMDD_HHMM.log`：每次執行的 log 與摘要
