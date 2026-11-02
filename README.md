@@ -58,6 +58,11 @@ quotes chart -c quotes.toml               # 依資料庫重新產生 K 線網頁
 
 排程建議：每個交易日 15:30 以後執行一次 `quotes run`。
 
-## 依賴套件與資安
+## 漏洞檢查與依賴套件
 
-依賴清單、漏洞追蹤（Dependabot、每週 govulncheck）與升級步驟見 [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)。提交前執行 `make check`。
+```sh
+gleaner vulncheck     # 檢查 gleaner.exe 編入的套件有沒有已知漏洞
+quotes vulncheck      # 同上，檢查 quotes.exe
+```
+
+需要網路、不需安裝 Go。建議每月一次及每次重新建置後執行。依賴清單與升級步驟見 [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)；開發時提交前執行 `make check`。

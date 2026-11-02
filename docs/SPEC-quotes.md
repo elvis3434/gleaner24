@@ -176,8 +176,9 @@ Q2 的籌碼資料表在 Q2 開始時再定案並以遷移加入。
 | `quotes run --dry-run` | 照常抓取與解析，只輸出筆數，不寫資料庫 |
 | `quotes validate -c quotes.toml` | 只檢查 config |
 | `quotes chart -c quotes.toml` | 依資料庫重新產生 K 線網頁（`chart.auto = true` 時 `run` 完成後也會自動產生） |
+| `quotes vulncheck` | 以 Go 官方漏洞資料庫檢查本執行檔編入的套件（見 `docs/DEPENDENCIES.md`） |
 
-結束代碼與 gleaner 相同：0 成功（含部分請求失敗）、1 config 錯誤、2 執行中斷（包括另一個 `quotes run` 或 `quotes chart` 正在執行）。
+結束代碼與 gleaner 相同：0 成功（含部分請求失敗）、1 config 錯誤、2 執行中斷（包括另一個 `quotes run` 或 `quotes chart` 正在執行）。`vulncheck` 另有：0 未發現漏洞、3 發現漏洞、2 無法檢查。
 
 同一時間只允許一個 `quotes run` 或 `quotes chart`：以資料庫所在目錄的 `quotes.lock` 加作業系統檔案鎖，程式結束（含當機、斷電）時自動釋放，不需手動刪除。`--dry-run` 不寫資料庫，不受限制。
 

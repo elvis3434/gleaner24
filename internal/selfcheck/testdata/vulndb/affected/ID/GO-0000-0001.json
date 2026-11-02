@@ -1,0 +1,16 @@
+{
+ "schema_version": "1.3.1",
+ "id": "GO-0000-0001",
+ "modified": "2026-11-01T00:00:00Z",
+ "published": "2026-11-01T00:00:00Z",
+ "summary": "FAKE test vulnerability in github.com/BurntSushi/toml (not a real advisory)",
+ "details": "Test fixture for internal/selfcheck. Marks toml.Decode as vulnerable so that a scan of the gleaner executable has something to find.",
+ "affected": [
+  {
+   "package": {"name": "github.com/BurntSushi/toml", "ecosystem": "Go"},
+   "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "99.0.0"}]}],
+   "ecosystem_specific": {"imports": [{"path": "github.com/BurntSushi/toml", "symbols": ["Decode"]}]}
+  }
+ ],
+ "database_specific": {"url": "https://example.invalid/GO-0000-0001"}
+}
