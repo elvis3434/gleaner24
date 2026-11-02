@@ -17,6 +17,7 @@ import (
 	"github.com/elvis3434/gleaner24/internal/market"
 	"github.com/elvis3434/gleaner24/internal/market/chart"
 	"github.com/elvis3434/gleaner24/internal/runlog"
+	"github.com/elvis3434/gleaner24/internal/selfcheck"
 )
 
 // Exit codes, as for gleaner.
@@ -32,10 +33,12 @@ Usage:
   quotes run [-c quotes.toml] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--dry-run]
   quotes validate [-c quotes.toml]
   quotes chart [-c quotes.toml]      regenerate the K-line page from the database
+  quotes vulncheck [-db URL|DIR] [-v]  check this executable for known vulnerabilities
 
 Without --from/--to, run collects the last lookback_days calendar days.
 Exit codes: 0 success (including some failed requests), 1 config error,
-2 run aborted (for example the database cannot be opened).
+2 run aborted (for example the database cannot be opened);
+vulncheck: 0 none found, 3 vulnerabilities found, 2 scan failed.
 `
 
 func location() *time.Location {
@@ -62,6 +65,8 @@ func runMain(args []string, stdout, stderr io.Writer) int {
 		return cmdValidate(args[1:], stdout, stderr)
 	case "chart":
 		return cmdChart(args[1:], stdout, stderr)
+	case "vulncheck":
+		return selfcheck.Command(context.Background(), "quotes", args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
 		return exitOK

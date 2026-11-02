@@ -458,3 +458,28 @@ func TestCLI(t *testing.T) {
 		t.Errorf("unknown command = %d", code)
 	}
 }
+
+// vulncheck scans the running executable; under go test that is the test
+// binary, which links toml.Decode through the config code just like the
+// real quotes executable.
+func TestVulncheckCommand(t *testing.T) {
+	db := filepath.Join("..", "..", "internal", "selfcheck", "testdata", "vulndb")
+	var out, errb bytes.Buffer
+	if code := runMain([]string{"vulncheck", "-db", filepath.Join(db, "affected")}, &out, &errb); code != 3 {
+		t.Errorf("affected db: exit %d, want 3\n%s%s", code, out.String(), errb.String())
+	}
+	if !strings.Contains(out.String(), "GO-0000-0001") {
+		t.Errorf("report:\n%s", out.String())
+	}
+	out.Reset()
+	if code := runMain([]string{"vulncheck", "-db", filepath.Join(db, "clean")}, &out, &errb); code != 0 {
+		t.Errorf("clean db: exit %d\n%s%s", code, out.String(), errb.String())
+	}
+	errb.Reset()
+	if code := runMain([]string{"vulncheck", "-db", t.TempDir()}, &out, &errb); code != 2 || !strings.Contains(errb.String(), "not a vulnerability database") {
+		t.Errorf("bad db: exit %d: %s", code, errb.String())
+	}
+	if code := runMain([]string{"vulncheck", "extra"}, &out, &errb); code != 1 {
+		t.Errorf("extra argument: exit %d", code)
+	}
+}

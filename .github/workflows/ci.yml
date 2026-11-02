@@ -1,14 +1,12 @@
 # Build, test and security checks (docs/DEPENDENCIES.md).
 #
-# Runs on every push, and weekly on main so that newly published
-# vulnerabilities in unchanged dependencies or in the Go toolchain still
-# fail a run and trigger GitHub's failure notification.
+# Runs only when code is pushed, or by hand from the Actions tab. There is
+# no schedule: periodic vulnerability checks are done on demand with
+# `gleaner vulncheck` / `quotes vulncheck`.
 name: CI
 
 on:
   push:
-  schedule:
-    - cron: "17 0 * * 1" # Monday 08:17 Asia/Taipei
   workflow_dispatch:
 
 permissions:

@@ -15,6 +15,7 @@ import (
 
 	"github.com/elvis3434/gleaner24/internal/config"
 	"github.com/elvis3434/gleaner24/internal/runlog"
+	"github.com/elvis3434/gleaner24/internal/selfcheck"
 )
 
 // Exit codes (SPEC: CLI).
@@ -30,9 +31,11 @@ Usage:
   gleaner run [-c config.toml] [--dry-run]
   gleaner validate [-c config.toml]
   gleaner test-query [--case-sensitive] "<expression>" <file-or-URL>
+  gleaner vulncheck [-db URL|DIR] [-v]   check this executable for known vulnerabilities
 
 Exit codes: 0 success (including some failed pages), 1 config error,
-2 run aborted (for example the database cannot be opened).
+2 run aborted (for example the database cannot be opened);
+vulncheck: 0 none found, 3 vulnerabilities found, 2 scan failed.
 `
 
 // location returns the Asia/Taipei time zone used for all timestamps.
@@ -60,6 +63,8 @@ func runMain(args []string, stdout, stderr io.Writer) int {
 		return cmdValidate(args[1:], stdout, stderr)
 	case "test-query":
 		return cmdTestQuery(args[1:], stdout, stderr)
+	case "vulncheck":
+		return selfcheck.Command(context.Background(), "gleaner", args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
 		return exitOK

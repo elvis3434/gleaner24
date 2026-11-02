@@ -333,8 +333,9 @@ gleaner24/
 | `gleaner validate -c config.toml` | 只檢查 config 與關鍵字表達式語法 |
 | `gleaner test-query "<表達式>" <檔案或網址>` | 對單一頁面測試命中結果 |
 | `gleaner stats` | 列出最近幾次執行的摘要 |
+| `gleaner vulncheck` | 以 Go 官方漏洞資料庫檢查本執行檔編入的套件（見 `docs/DEPENDENCIES.md`） |
 
-結束代碼：0 = 成功（含部分頁面失敗）、1 = config 錯誤、2 = 執行中斷（例如資料庫無法開啟）。
+結束代碼：0 = 成功（含部分頁面失敗）、1 = config 錯誤、2 = 執行中斷（例如資料庫無法開啟）。`vulncheck` 另有：0 = 未發現漏洞、3 = 發現漏洞、2 = 無法檢查。
 
 排程：工作排程器設定每日固定時間執行 `run`，起始位置設為程式目錄。同一時間只允許一個執行個體，以資料目錄內的鎖定檔防止重疊（`data/gleaner.lock`，作業系統檔案鎖，程式結束時自動釋放；`--dry-run` 不受限制）。
 

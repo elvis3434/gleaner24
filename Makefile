@@ -19,9 +19,11 @@ windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gleaner.exe ./cmd/gleaner
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o quotes.exe ./cmd/quotes
 
-# Analysis tools at the versions pinned in tools/go.mod, built into bin/.
+# Analysis tools built into bin/: staticcheck at the version pinned in
+# tools/go.mod, govulncheck at the version gleaner and quotes embed (go.mod).
 tools:
-	go build -C tools -o ../bin/ golang.org/x/vuln/cmd/govulncheck honnef.co/go/tools/cmd/staticcheck
+	go build -C tools -o ../bin/ honnef.co/go/tools/cmd/staticcheck
+	go build -o bin/ golang.org/x/vuln/cmd/govulncheck
 
 lint: tools
 	bin/staticcheck ./...
@@ -37,7 +39,7 @@ vulncheck: tools
 # Dependencies with newer versions (informational).
 outdated:
 	@go list -m -u -f '{{if and .Update (not .Indirect)}}{{.Path}} {{.Version}} -> {{.Update.Version}}{{end}}' all
-	@go list -C tools -m -u -f '{{if .Update}}{{.Path}} {{.Version}} -> {{.Update.Version}} (tools){{end}}' all | grep -E 'golang.org/x/vuln|honnef.co/go/tools' || true
+	@go list -C tools -m -u -f '{{if .Update}}{{.Path}} {{.Version}} -> {{.Update.Version}} (tools){{end}}' all | grep -E 'honnef.co/go/tools' || true
 
 # Everything CI runs.
 check: vet test lint vulncheck windows
