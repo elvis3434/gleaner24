@@ -23,8 +23,15 @@ updates:
       prefix: deps
 
   # Analysis tools pinned in tools/go.mod (govulncheck, staticcheck).
+  # Go lists modules named by `tool` directives as "// indirect", and
+  # Dependabot only updates direct dependencies unless told otherwise.
   - package-ecosystem: gomod
     directory: /tools
+    allow:
+      - dependency-name: golang.org/x/vuln
+        dependency-type: all
+      - dependency-name: honnef.co/go/tools
+        dependency-type: all
     schedule:
       interval: weekly
       day: monday

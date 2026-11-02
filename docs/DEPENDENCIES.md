@@ -1,6 +1,6 @@
 # 依賴套件與資安追蹤
 
-本文件列出 gleaner 與 quotes 用到的外部套件，以及如何追蹤它們的安全漏洞、如何升級。最後檢核：2026-10-24。
+本文件列出 gleaner 與 quotes 用到的外部套件，以及如何追蹤它們的安全漏洞、如何升級。最後檢核：2026-11-02。
 
 ## 依賴清單
 
@@ -12,7 +12,7 @@
 | `github.com/mmcdole/gofeed` | v1.5.0 | RSS / Atom 解析（gleaner） | MIT |
 | `github.com/go-shiori/go-readability` | 2025-12-05 版（無正式版號） | 正文擷取（gleaner） | MIT |
 | `github.com/JohannesKaufmann/html-to-markdown/v2` | v2.5.2 | HTML 轉 Markdown（gleaner） | MIT |
-| `golang.org/x/net` | v0.61.0 | HTML 解析、字元集偵測 | BSD-3-Clause |
+| `golang.org/x/net` | v0.62.0 | HTML 解析、字元集偵測 | BSD-3-Clause |
 | `golang.org/x/text` | v0.43.0 | Unicode 正規化、Big5 解碼 | BSD-3-Clause |
 | `golang.org/x/sys` | v0.49.0 | Windows 檔案鎖 | BSD-3-Clause |
 | `modernc.org/sqlite` | v1.60.1 | 純 Go 的 SQLite（不需 cgo） | BSD-3-Clause |
@@ -32,7 +32,7 @@
 | `golang.org/x/vuln/cmd/govulncheck` | v1.8.0 | 依 Go 官方漏洞資料庫，檢查程式實際呼叫到的已知漏洞 |
 | `honnef.co/go/tools/cmd/staticcheck` | v0.8.1 | 靜態分析，找出 `go vet` 抓不到的錯誤 |
 
-放在獨立的 `tools/` 模組，工具本身的依賴不會影響 `gleaner.exe`、`quotes.exe` 用到的套件版本。
+放在獨立的 `tools/` 模組，工具本身的依賴不會影響 `gleaner.exe`、`quotes.exe` 用到的套件版本。Go 會把 `tool` 指令列出的模組標成 `// indirect`，而 Dependabot 預設只更新直接依賴，所以 `.github/dependabot.yml` 對 `/tools` 以 `allow` 明確列出這兩個工具。
 
 ### K 線網頁的前端元件（`internal/market/chart/assets/`）
 
@@ -111,6 +111,14 @@ make check
 | 全部檢查 | `make check` | 依序執行 `go vet ./...`、`go test ./...` 與上面三項 |
 
 無法連線到 `vuln.go.dev` 時（例如開發用的雲端環境），可以用離線資料庫：`make vulncheck VULNDB=file:///path/to/db`。
+
+## 處理紀錄
+
+| 日期 | 來源 | 內容 | 處理 |
+| --- | --- | --- | --- |
+| 2026-10-24 | 首次檢核 | go1.26.0 有 28 個程式會呼叫到的標準函式庫漏洞 | 指定 `toolchain go1.26.10` |
+| 2026-11-02 | 每週 CI 的 govulncheck 失敗（寄信通知） | `golang.org/x/net` v0.61.0 的 HTML 解析器有 GO-2026-6866、GO-2026-6860，gleaner 擷取正文時會呼叫到 | 升級到 v0.62.0（安全修正，不等 14 天） |
+| 2026-11-02 | 檢查 Dependabot 紀錄 | `/tools` 的工具因標成 `// indirect` 被 Dependabot 略過，從未提出升級 | `dependabot.yml` 加上 `allow` |
 
 ## 2026-10-24 檢核結果
 
